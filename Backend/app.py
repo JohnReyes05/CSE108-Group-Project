@@ -5,7 +5,7 @@ import math
 
 app = Flask(__name__)
 
-DIST_DIR = Path(__file__).resolve().parent / "dist"
+DIST_DIR = Path(__file__).resolve().parent.parent / "Frontend" / "dist"
 
 # Configure the SQLite database
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///grades.db"

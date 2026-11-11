@@ -4,6 +4,7 @@ const API_URL = '';
 
 const gradesTable = document.getElementById('gradesTable');
 const message = document.getElementById('message');
+const editMessage = document.getElementById('editMessage');
 
 async function getAllGrades() {
   try{
@@ -170,12 +171,12 @@ document.getElementById('editButton')
     const grade = Number(gradeInput);
 
     if (!name || gradeInput === '') {
-      message.textContent = 'Please enter a student name and grade.';
+      editMessage.textContent = 'Please enter a student name and grade.';
       return;
     }
 
     if (!Number.isFinite(grade) || grade < 0 || grade > 100) {
-      message.textContent = 'Grade must be between 0 and 100.';
+      editMessage.textContent = 'Grade must be between 0 and 100.';
       return;
     }
 
@@ -197,14 +198,14 @@ document.getElementById('editButton')
 
       await response.json();
 
-      message.textContent = `Updated ${name}'s grade successfully!`;
+      editMessage.textContent = `Updated ${name}'s grade successfully!`;
 
       document.getElementById('editName').value = '';
       document.getElementById('editGrade').value = '';
 
       await getAllGrades();
     } catch (error) {
-      message.textContent = error.message;
+      editMessage.textContent = error.message;
     }
   });
 
