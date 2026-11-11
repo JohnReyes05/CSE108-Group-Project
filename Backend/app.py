@@ -3,8 +3,14 @@ from flask_sqlalchemy import SQLAlchemy
 from pathlib import Path
 import math
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask import Flask, jsonify, request, send_from_directory, session
+import os
 
 app = Flask(__name__)
+
+app.config["SECRET_KEY"] = os.environ["FLASK_SECRET_KEY"]
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 DIST_DIR = Path(__file__).resolve().parent.parent / "Frontend" / "dist"
 
@@ -71,6 +77,32 @@ def login():
 
     if user is None or not user.check_password(password):
         return jsonify({"error": "Invalid username or password."}), 401
+    session.clear()
+    session["user_id"] = user.id
+
+    return jsonify({
+        "username": user.username,
+        "role": user.role
+    }), 200
+@app.route("/logout", methods=["POST"])
+def logout():
+    session.clear()
+
+    return jsonify({
+        "message": "Logged out successfully."
+    }), 200
+@app.route("/me", methods=["GET"])
+def current_user():
+    user_id = session.get("user_id")
+
+    if user_id is None:
+        return jsonify({"error": "Not logged in."}), 401
+
+    user = db.session.get(User, user_id)
+
+    if user is None:
+        session.clear()
+        return jsonify({"error": "Not logged in."}), 401
 
     return jsonify({
         "username": user.username,
