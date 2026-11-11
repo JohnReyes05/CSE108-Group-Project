@@ -8,8 +8,13 @@ app = Flask(__name__)
 
 DIST_DIR = Path(__file__).resolve().parent.parent / "Frontend" / "dist"
 
-# Configure the SQLite database
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///grades.db"
+BASE_DIR = Path(__file__).resolve().parent
+
+DATABASE_PATH = BASE_DIR / "instance" / "grades.db"
+
+app.config["SQLALCHEMY_DATABASE_URI"] = (
+    f"sqlite:///{DATABASE_PATH.as_posix()}"
+)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
@@ -38,7 +43,39 @@ class User(db.Model):
 with app.app_context():
     db.create_all()
 
+@app.route("/login", methods=["POST"])
+def login():
+    print("DEBUG - Database:", db.engine.url.database)
+    data = request.get_json(silent=True)
 
+    if not isinstance(data, dict):
+        return jsonify({"error": "Please provide a username and password."}), 400
+
+    username = data.get("username")
+    password = data.get("password")
+
+    if (
+        not isinstance(username, str)
+        or not isinstance(password, str)
+        or not username
+        or not password
+    ):
+        return jsonify({"error": "Please provide username and password."}), 400
+    user = User.query.filter_by(username=username).first()
+
+    print("DEBUG - Username received:", repr(username))
+    print("DEBUG - User found:", user is not None)
+
+    if user is not None:
+        print("DEBUG - Password matches:", user.check_password(password))
+
+    if user is None or not user.check_password(password):
+        return jsonify({"error": "Invalid username or password."}), 401
+
+    return jsonify({
+        "username": user.username,
+        "role": user.role
+    }), 200
 @app.route("/")
 def home():
     return send_from_directory(DIST_DIR, "index.html")
