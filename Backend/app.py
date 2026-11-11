@@ -244,7 +244,26 @@ def delete_grade(name):
     return jsonify({
         "message": "Student deleted successfully."
     }), 200
+# ==========================================
+# ADMIN ROUTES
+# ==========================================
 
+# Existing grade management routes
+# Additional admin routes will go here
+
+
+# ==========================================
+# STUDENT ROUTES
+# ==========================================
+
+# Teammate 1 adds student routes here
+
+
+# ==========================================
+# TEACHER ROUTES
+# ==========================================
+
+# Teammate 2 adds teacher routes here
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

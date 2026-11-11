@@ -274,10 +274,7 @@ loginButton.addEventListener('click', async () => {
         }
 
         loginMessage.textContent = '';
-        loginSection.hidden = true;
-        dashboard.hidden = false;
-
-        await getAllGrades();
+        showLoggedInUser(data);
 
         console.log('Logged in as:', data.username);
         console.log('Role:', data.role);
@@ -293,27 +290,26 @@ async function checkSession() {
         if (!response.ok) {
             loginSection.hidden = false;
             dashboard.hidden = true;
+            document.getElementById('welcomeSection').hidden = true;
             return;
         }
 
         const user = await response.json();
 
-        loginSection.hidden = true;
-        dashboard.hidden = false;
+        showLoggedInUser(user);
 
         console.log('Already logged in as:', user.username);
-
-        await getAllGrades();
 
     } catch (error) {
         loginSection.hidden = false;
         dashboard.hidden = true;
+        document.getElementById('welcomeSection').hidden = true;
     }
 }
 
 checkSession();
 
-logoutButton.addEventListener('click', async () => {
+async function logout() {
     try {
         const response = await fetch('/logout', {
             method: 'POST',
@@ -325,12 +321,55 @@ logoutButton.addEventListener('click', async () => {
         }
 
         dashboard.hidden = true;
+        document.getElementById('welcomeSection').hidden = true;
         loginSection.hidden = false;
 
         document.getElementById('loginPassword').value = '';
         loginMessage.textContent = '';
 
     } catch (error) {
+        console.error('Logout error:', error);
         alert('Could not log out. Please try again.');
     }
-});
+}
+
+logoutButton.addEventListener('click', logout);
+
+document.getElementById('welcomeLogoutButton')
+    .addEventListener('click', logout);
+function showLoggedInUser(user) {
+    loginSection.hidden = true;
+
+    if (user.role === 'admin') {
+        dashboard.hidden = false;
+        document.getElementById('welcomeSection').hidden = true;
+        getAllGrades();
+    } else {
+        dashboard.hidden = true;
+        document.getElementById('welcomeSection').hidden = false;
+
+        document.getElementById('welcomeMessage').textContent =
+            `Welcome, ${user.username}!`;
+    }
+}
+// ==========================================
+// ADMIN DASHBOARD
+// ==========================================
+
+// getAllGrades()
+// displayGrades()
+// Add, edit, delete, and search
+
+
+// ==========================================
+// STUDENT DASHBOARD
+// ==========================================
+
+// Teammate 1 adds student functions here
+
+
+// ==========================================
+// TEACHER DASHBOARD
+// ==========================================
+
+// Teammate 2 adds teacher functions here
