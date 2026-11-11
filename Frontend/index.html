@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Grades</title>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>Student Grades</h1>
+            <p>Manage student grades</p>
+        </header>
+
+        <section>
+            <h2>Look Up a Student</h2>
+            <input type="text" id="searchName" placeholder="Enter student name">
+            <button id="searchButton">Search</button>
+            <p id="searchResult"></p>
+        </section>
+
+        <section>
+            <h2>Add a Student</h2>
+            <input type="text" id="newName" placeholder="Student name">
+            <input type="number" id="newGrade" placeholder="Grade">
+            <button id="addButton">Add Student</button>
+            <p id="message"></p>
+        </section>
+
+        <section>
+            <h2>Edit a Grade</h2>
+            <input type="text" id="editName" placeholder="Student name">
+            <input type="number" id="editGrade" placeholder="New grade">
+            <button id="editButton">Update Grade</button>
+            <p id="message"></p>
+        </section>
+
+        <section>
+            <h2>All Students</h2>
+            <button id="refreshButton">Refresh Grades</button>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Student Name</th>
+                        <th>Grade</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="gradesTable">
+                </tbody>
+            </table>
+        </section>
+
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>
