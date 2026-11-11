@@ -7,9 +7,33 @@
 </head>
 <body>
     <div id="app">
+        <section id="loginSection">
+            <h2>Login</h2>
+
+            <input
+                type="text"
+                id="loginUsername"
+                placeholder="Username"
+                autocomplete="username"
+            >
+
+            <input
+                type="password"
+                id="loginPassword"
+                placeholder="Password"
+                autocomplete="current-password"
+            >
+
+            <button id="loginButton">Login</button>
+
+            <p id="loginMessage"></p>
+        </section>        
+
+    <div id="dashboard" hidden>
         <header>
             <h1>Student Grades</h1>
             <p>Manage student grades</p>
+            <button id="logoutButton">Logout</button>
         </header>
 
         <section>
@@ -52,8 +76,10 @@
             </table>
         </section>
 
+        </div>
     </div>
-
+    
     <script type="module" src="/src/main.js"></script>
+
 </body>
 </html>

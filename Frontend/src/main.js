@@ -5,6 +5,11 @@ const API_URL = '';
 const gradesTable = document.getElementById('gradesTable');
 const message = document.getElementById('message');
 const editMessage = document.getElementById('editMessage');
+const loginButton = document.getElementById('loginButton');
+const loginMessage = document.getElementById('loginMessage');
+const loginSection = document.getElementById('loginSection');
+const dashboard = document.getElementById('dashboard');
+const logoutButton = document.getElementById('logoutButton');
 
 async function getAllGrades() {
   try{
@@ -242,4 +247,90 @@ async function deleteStudent(name) {
 }
 
 
-getAllGrades();
+loginButton.addEventListener('click', async () => {
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value;
+
+    if (!username || !password) {
+        loginMessage.textContent = 'Please enter a username and password.';
+        return;
+    }
+
+    try {
+        const response = await fetch('/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            loginMessage.textContent = data.error || 'Login failed.';
+            return;
+        }
+
+        loginMessage.textContent = '';
+        loginSection.hidden = true;
+        dashboard.hidden = false;
+
+        await getAllGrades();
+
+        console.log('Logged in as:', data.username);
+        console.log('Role:', data.role);
+
+    } catch (error) {
+        loginMessage.textContent = 'Could not connect to the server.';
+    }
+});
+async function checkSession() {
+    try {
+        const response = await fetch('/me');
+
+        if (!response.ok) {
+            loginSection.hidden = false;
+            dashboard.hidden = true;
+            return;
+        }
+
+        const user = await response.json();
+
+        loginSection.hidden = true;
+        dashboard.hidden = false;
+
+        console.log('Already logged in as:', user.username);
+
+        await getAllGrades();
+
+    } catch (error) {
+        loginSection.hidden = false;
+        dashboard.hidden = true;
+    }
+}
+
+checkSession();
+
+logoutButton.addEventListener('click', async () => {
+    try {
+        const response = await fetch('/logout', {
+            method: 'POST',
+            credentials: 'same-origin'
+        });
+
+        if (!response.ok) {
+            throw new Error('Logout failed.');
+        }
+
+        dashboard.hidden = true;
+        loginSection.hidden = false;
+
+        document.getElementById('loginPassword').value = '';
+        loginMessage.textContent = '';
+
+    } catch (error) {
+        alert('Could not log out. Please try again.');
+    }
+});
