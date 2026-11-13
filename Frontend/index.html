@@ -104,11 +104,55 @@
 
         <div id="teacherDashboard" hidden>
 
-            <!-- Teammate 2 adds teacher features here -->
+            <header class="acme-header">
+                <p id="teacherWelcome" class="acme-welcome"></p>
+                <h1>ACME University</h1>
+                <button id="teacherLogoutButton" class="acme-signout">Sign out</button>
+            </header>
 
             <!-- View assigned courses -->
-            <!-- View enrolled students -->
-            <!-- View and edit student grades -->
+            <section id="teacherCoursesView" class="acme-panel">
+                <div class="acme-panel-title">
+                    <h2>Your Courses</h2>
+                </div>
+
+                <table class="acme-table">
+                    <thead>
+                        <tr>
+                            <th>Course Name</th>
+                            <th>Teacher</th>
+                            <th>Time</th>
+                            <th>Students Enrolled</th>
+                        </tr>
+                    </thead>
+                    <tbody id="teacherCoursesTable">
+                    </tbody>
+                </table>
+
+                <p id="teacherCoursesMessage" class="acme-message"></p>
+            </section>
+
+            <!-- View enrolled students and edit their grades -->
+            <section id="teacherCourseView" class="acme-panel" hidden>
+                <div class="acme-panel-title">
+                    <button id="teacherBackButton" class="acme-back" aria-label="Back to your courses">&larr;</button>
+                    <h2 id="teacherCourseTitle"></h2>
+                </div>
+
+                <table class="acme-table acme-grades-table">
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Grade</th>
+                        </tr>
+                    </thead>
+                    <tbody id="teacherStudentsTable">
+                    </tbody>
+                </table>
+
+                <p class="acme-hint">Click a grade to edit it. Changes save when you press Enter or click away.</p>
+                <p id="teacherGradeMessage" class="acme-message"></p>
+            </section>
 
         </div>
 

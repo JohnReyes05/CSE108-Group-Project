@@ -39,11 +39,52 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False)
 
+    name = db.Column(db.String(100), nullable=True)
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    def display_name(self):
+        return self.name or self.username
+
+
+# class offered by school taught by teacher
+# student can see and enroll in classes, teachers see their own classes and students and can edit grades
+class Course(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    time = db.Column(db.String(100), nullable=False)
+    capacity = db.Column(db.Integer, nullable=False)
+    teacher_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+
+    teacher = db.relationship("User")
+    enrollments = db.relationship(
+        "Enrollment",
+        back_populates="course",
+        cascade="all, delete-orphan"
+    )
+
+
+# table showing which students are enrolled in which classes, and their grades
+# grade is empty until one is
+class Enrollment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+
+    student_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey("course.id"), nullable=False)
+    grade = db.Column(db.Float, nullable=True)
+
+    student = db.relationship("User")
+    course = db.relationship("Course", back_populates="enrollments")
+
+    # a student can only be enrolled in the same course once
+    __table_args__ = (
+        db.UniqueConstraint("student_id", "course_id"),
+    )
 
 # Create the database table if it does not exist
 with app.app_context():
@@ -82,6 +123,7 @@ def login():
 
     return jsonify({
         "username": user.username,
+        "name": user.display_name(),
         "role": user.role
     }), 200
 @app.route("/logout", methods=["POST"])
@@ -106,6 +148,7 @@ def current_user():
 
     return jsonify({
         "username": user.username,
+        "name": user.display_name(),
         "role": user.role
     }), 200
 @app.route("/")
@@ -263,7 +306,139 @@ def delete_grade(name):
 # TEACHER ROUTES
 # ==========================================
 
-# Teammate 2 adds teacher routes here
+# returns (user, None) if the logged-in user has the given role
+# (None, error_response) if they are not logged in / not allowed
+# The student routes can reuse this with require_role("student")
+def require_role(role):
+    user_id = session.get("user_id")
+
+    if user_id is None:
+        return None, (jsonify({"error": "Not logged in."}), 401)
+
+    user = db.session.get(User, user_id)
+
+    if user is None:
+        session.clear()
+        return None, (jsonify({"error": "Not logged in."}), 401)
+
+    if user.role != role:
+        return None, (jsonify({"error": "You do not have access to this."}), 403)
+
+    return user, None
+
+
+# finds a course by ID and checks that the given teacher teaches it
+def get_teacher_course(teacher, course_id):
+    course = db.session.get(Course, course_id)
+
+    if course is None:
+        return None, (jsonify({"error": "Course not found."}), 404)
+
+    if course.teacher_id != teacher.id:
+        return None, (jsonify({"error": "You do not teach this course."}), 403)
+
+    return course, None
+
+
+def course_to_dict(course):
+    return {
+        "id": course.id,
+        "name": course.name,
+        "teacher": course.teacher.display_name(),
+        "time": course.time,
+        "enrolled": len(course.enrollments),
+        "capacity": course.capacity
+    }
+
+
+# teacher can see all of their courses
+@app.route("/teacher/courses", methods=["GET"])
+def teacher_courses():
+    teacher, error = require_role("teacher")
+
+    if error:
+        return error
+
+    courses = (
+        Course.query
+        .filter_by(teacher_id=teacher.id)
+        .order_by(Course.name)
+        .all()
+    )
+
+    return jsonify([course_to_dict(course) for course in courses]), 200
+
+
+# see students in course, with their grades
+@app.route("/teacher/courses/<int:course_id>/students", methods=["GET"])
+def teacher_course_students(course_id):
+    teacher, error = require_role("teacher")
+
+    if error:
+        return error
+
+    course, error = get_teacher_course(teacher, course_id)
+
+    if error:
+        return error
+
+    enrollments = sorted(
+        course.enrollments,
+        key=lambda enrollment: enrollment.student.display_name().lower()
+    )
+
+    return jsonify({
+        "course": course_to_dict(course),
+        "students": [
+            {
+                "student_id": enrollment.student_id,
+                "name": enrollment.student.display_name(),
+                "grade": enrollment.grade
+            }
+            for enrollment in enrollments
+        ]
+    }), 200
+
+
+# this edits student grades
+# Body: {"grade": 92}  (reuses read_grade() for the 0-100 check)
+@app.route(
+    "/teacher/courses/<int:course_id>/students/<int:student_id>/grade",
+    methods=["PUT"]
+)
+def teacher_update_grade(course_id, student_id):
+    teacher, error = require_role("teacher")
+
+    if error:
+        return error
+
+    course, error = get_teacher_course(teacher, course_id)
+
+    if error:
+        return error
+
+    enrollment = Enrollment.query.filter_by(
+        course_id=course.id,
+        student_id=student_id
+    ).first()
+
+    if enrollment is None:
+        return jsonify({"error": "That student is not in this course."}), 404
+
+    grade, error = read_grade()
+
+    if error:
+        return error
+
+    enrollment.grade = grade
+    db.session.commit()
+
+    return jsonify({
+        "message": "Grade updated successfully.",
+        "student_id": enrollment.student_id,
+        "name": enrollment.student.display_name(),
+        "grade": enrollment.grade
+    }), 200
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

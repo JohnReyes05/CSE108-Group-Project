@@ -5,6 +5,7 @@ with app.app_context():
     username = input("Enter username: ").strip()
     password = getpass("Enter password: ")
     role = input("Enter role (student/teacher/admin): ").strip().lower()
+    name = input("Enter full name (optional, shown on the site): ").strip()
 
     if not username or not password:
         print("Username and password are required.")
@@ -16,7 +17,7 @@ with app.app_context():
         print("Username already exists.")
 
     else:
-        user = User(username=username, role=role)
+        user = User(username=username, role=role, name=name or None)
         user.set_password(password)
 
         db.session.add(user)

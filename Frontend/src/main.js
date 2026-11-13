@@ -322,6 +322,7 @@ async function logout() {
 
         dashboard.hidden = true;
         document.getElementById('welcomeSection').hidden = true;
+        hideTeacherDashboard();
         loginSection.hidden = false;
 
         document.getElementById('loginPassword').value = '';
@@ -344,6 +345,10 @@ function showLoggedInUser(user) {
         dashboard.hidden = false;
         document.getElementById('welcomeSection').hidden = true;
         getAllGrades();
+    } else if (user.role === 'teacher') {
+        dashboard.hidden = true;
+        document.getElementById('welcomeSection').hidden = true;
+        showTeacherDashboard(user);
     } else {
         dashboard.hidden = true;
         document.getElementById('welcomeSection').hidden = false;
@@ -372,4 +377,199 @@ function showLoggedInUser(user) {
 // TEACHER DASHBOARD
 // ==========================================
 
-// Teammate 2 adds teacher functions here
+const teacherDashboard = document.getElementById('teacherDashboard');
+const teacherCoursesView = document.getElementById('teacherCoursesView');
+const teacherCourseView = document.getElementById('teacherCourseView');
+const teacherCoursesTable = document.getElementById('teacherCoursesTable');
+const teacherStudentsTable = document.getElementById('teacherStudentsTable');
+const teacherCoursesMessage = document.getElementById('teacherCoursesMessage');
+const teacherGradeMessage = document.getElementById('teacherGradeMessage');
+const teacherCourseTitle = document.getElementById('teacherCourseTitle');
+
+// Called by showLoggedInUser() when a teacher logs in
+function showTeacherDashboard(user) {
+  teacherDashboard.hidden = false;
+  document.getElementById('teacherWelcome').textContent =
+    `Welcome ${user.name ?? user.username}!`;
+
+  showTeacherCourses();
+}
+
+// Called by logout() so the teacher view doesn't stay on screen
+function hideTeacherDashboard() {
+  teacherDashboard.hidden = true;
+  teacherCoursesTable.replaceChildren();
+  teacherStudentsTable.replaceChildren();
+  teacherCoursesMessage.textContent = '';
+  teacherGradeMessage.textContent = '';
+}
+
+// "Your Courses" table
+async function showTeacherCourses() {
+  teacherCourseView.hidden = true;
+  teacherCoursesView.hidden = false;
+  teacherCoursesMessage.textContent = 'Loading courses...';
+
+  try {
+    const response = await fetch(`${API_URL}/teacher/courses`, {
+      credentials: 'same-origin'
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Could not load your courses.');
+    }
+
+    displayTeacherCourses(data);
+    teacherCoursesMessage.textContent =
+      data.length === 0 ? 'You are not teaching any courses yet.' : '';
+  } catch (error) {
+    teacherCoursesMessage.textContent = error.message;
+  }
+}
+
+function displayTeacherCourses(courses) {
+  teacherCoursesTable.replaceChildren();
+
+  courses.forEach(course => {
+    const row = document.createElement('tr');
+
+    // Course name is a link that opens the student list
+    const nameCell = document.createElement('td');
+    const courseLink = document.createElement('button');
+    courseLink.className = 'acme-link';
+    courseLink.textContent = course.name;
+    courseLink.addEventListener('click', () => showTeacherCourse(course.id));
+    nameCell.appendChild(courseLink);
+
+    const teacherCell = document.createElement('td');
+    teacherCell.textContent = course.teacher;
+
+    const timeCell = document.createElement('td');
+    timeCell.textContent = course.time;
+
+    const enrolledCell = document.createElement('td');
+    enrolledCell.textContent = `${course.enrolled}/${course.capacity}`;
+
+    row.append(nameCell, teacherCell, timeCell, enrolledCell);
+    teacherCoursesTable.appendChild(row);
+  });
+}
+
+// One course: students and their editable grades
+
+async function showTeacherCourse(courseId) {
+  teacherCoursesView.hidden = true;
+  teacherCourseView.hidden = false;
+  teacherCourseTitle.textContent = 'Loading...';
+  teacherStudentsTable.replaceChildren();
+  teacherGradeMessage.textContent = '';
+
+  try {
+    const response = await fetch(
+      `${API_URL}/teacher/courses/${courseId}/students`,
+      { credentials: 'same-origin' }
+    );
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Could not load this course.');
+    }
+
+    teacherCourseTitle.textContent = data.course.name;
+    displayTeacherStudents(courseId, data.students);
+
+    if (data.students.length === 0) {
+      teacherGradeMessage.textContent = 'No students are enrolled yet.';
+    }
+  } catch (error) {
+    teacherCourseTitle.textContent = '';
+    teacherGradeMessage.textContent = error.message;
+  }
+}
+
+function displayTeacherStudents(courseId, students) {
+  teacherStudentsTable.replaceChildren();
+
+  students.forEach(student => {
+    const row = document.createElement('tr');
+
+    const nameCell = document.createElement('td');
+    nameCell.textContent = student.name;
+
+    const gradeCell = document.createElement('td');
+    const gradeInput = document.createElement('input');
+    gradeInput.type = 'number';
+    gradeInput.min = '0';
+    gradeInput.max = '100';
+    gradeInput.step = 'any';
+    gradeInput.className = 'acme-grade-input';
+    gradeInput.placeholder = '—';
+    gradeInput.value = student.grade ?? '';
+    gradeInput.setAttribute('aria-label', `Grade for ${student.name}`);
+
+    // Remember the last saved value so we can undo if necessary
+    gradeInput.dataset.saved = gradeInput.value;
+
+    // 'change' happens when you clicked away, or Enter is pressed
+    gradeInput.addEventListener('change', () => {
+      saveTeacherGrade(courseId, student, gradeInput);
+    });
+
+    gradeInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        gradeInput.blur();
+      }
+    });
+
+    gradeCell.appendChild(gradeInput);
+    row.append(nameCell, gradeCell);
+    teacherStudentsTable.appendChild(row);
+  });
+}
+
+async function saveTeacherGrade(courseId, student, gradeInput) {
+  const gradeText = gradeInput.value;
+  const grade = Number(gradeText);
+
+  if (gradeText === '' || !Number.isFinite(grade) || grade < 0 || grade > 100) {
+    teacherGradeMessage.textContent = 'Grade must be between 0 and 100.';
+    gradeInput.value = gradeInput.dataset.saved;
+    return;
+  }
+
+  teacherGradeMessage.textContent = `Saving ${student.name}'s grade...`;
+
+  try {
+    const response = await fetch(
+      `${API_URL}/teacher/courses/${courseId}/students/${student.student_id}/grade`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({ grade })
+      }
+    );
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Could not save the grade.');
+    }
+
+    gradeInput.value = data.grade;
+    gradeInput.dataset.saved = gradeInput.value;
+    teacherGradeMessage.textContent =
+      `Saved ${student.name}'s grade as ${data.grade}.`;
+  } catch (error) {
+    gradeInput.value = gradeInput.dataset.saved;
+    teacherGradeMessage.textContent = error.message;
+  }
+}
+
+document.getElementById('teacherBackButton')
+  .addEventListener('click', showTeacherCourses);
+
+document.getElementById('teacherLogoutButton')
+  .addEventListener('click', logout);
