@@ -340,7 +340,11 @@ document.getElementById('welcomeLogoutButton')
     .addEventListener('click', logout);
 function showLoggedInUser(user) {
     loginSection.hidden = true;
-
+    
+    dashboard.hidden = true;
+    teacherDashboard.hidden = true;
+    document.getElementById('welcomeSection').hidden = true;
+    
     if (user.role === 'admin') {
         dashboard.hidden = false;
         document.getElementById('welcomeSection').hidden = true;
