@@ -367,6 +367,59 @@ function showLoggedInUser(user) {
 
 // Teammate 1 adds student functions here
 
+//async function loadMyClasses() {
+//  const tbody = document.getElementById('myClassesTable');
+//  const studentMessage = document.getElementById('studentMessage');
+//  tbody.replaceChildren();
+//  studentMessage.textContent = 'Loading classes...';
+//
+//  try {
+//    const response = await fetch('/my-classes', { credentials: 'same-origin' });
+//    if (!response.ok) throw new Error('Could not load your classes.');
+//
+//    const classes = await response.json();
+//
+//    if (classes.length === 0) {
+//      studentMessage.textContent = 'You are not enrolled in any classes.';
+//      return;
+//    }
+//
+//    classes.forEach(c => {
+//      const row = document.createElement('tr');
+//      [c.name, c.teacher, c.time, `${c.enrolled}/${c.capacity}`].forEach(text => {
+//        const td = document.createElement('td');
+//        td.textContent = text;
+//        row.appendChild(td);
+//      });
+//      tbody.appendChild(row);
+//    });
+//
+//    studentMessage.textContent = '';
+//  } catch (error) {
+//    studentMessage.textContent = error.message;
+//  }
+//}
+//
+//
+document.getElementById('studentLogoutButton').addEventListener('click', logout);
+loginButton.addEventListener('click', async () => {
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+
+  const response = await fetch('/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ username, password })
+  });
+  if (!response.ok) return;
+
+  const user = await response.json();
+  if (user.role === 'student') {
+    document.getElementById('welcomeSection').hidden = true;
+    document.getElementById('studentDashboard').hidden = false;
+  }
+});
 
 // ==========================================
 // TEACHER DASHBOARD

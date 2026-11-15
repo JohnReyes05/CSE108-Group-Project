@@ -258,6 +258,54 @@ def delete_grade(name):
 
 # Teammate 1 adds student routes here
 
+student_classes = db.Table('student_classes',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('class_id', db.Integer, db.ForeignKey('course.id'), primary_key=True),
+)
+
+class Course(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    teacher = db.Column(db.String(100), nullable=False)
+    time = db.Column(db.String(100), nullable=False)
+    capacity = db.Column(db.Integer, nullable=False)
+    students = db.relationship('User', secondary=student_classes, backref='enrolled_classes')
+
+with app.app_context():
+    db.create_all()
+    if Course.query.count() == 0:
+        courses = [
+            Course(name="j", teacher="j", time="11:00-12:00", capacity=10),
+            Course(name="k", teacher="k", time="12:00-13:00", capacity=10),
+            Course(name="l", teacher="l", time="13:00-14:00", capacity=10),   
+        ]
+        db.session.add_all(courses)
+        for s in User.query.filter_by(role="student").all():
+            s.enrolled_classes.extend(courses[:2])
+        db.session.commit()
+
+@app.route("/my-classes", methods=["GET"])
+def get_my_classes():
+    user_id = session.get("user_id")
+    if user_id is None:
+        return jsonify({"error": "Not logged in"}), 401
+
+    user = db.session.get(User, user_id)
+    if user is None or user.role != "student":
+        return jsonify({"error": "Students only."}), 403
+
+    return jsonify([
+        {
+            "id": c.id,
+            "name": c.name,
+            "teacher": c.teacher,
+            "time": c.time,
+            "enrolled": len(c.students),
+            "capacity": c.capacity
+        }
+        for c in user.enrolled_classes
+    ])
+
 
 # ==========================================
 # TEACHER ROUTES
