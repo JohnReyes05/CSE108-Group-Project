@@ -478,18 +478,33 @@ document.getElementById('addCoursesView').addEventListener('click', (e) => {
   if (!btn || btn.disabled) return;
 
   const cells = btn.closest('tr').children;
-  const row = document.createElement('tr');
+  const className = cells[0].textContent;
+  const tbody = document.getElementById('allClassesTable');
 
+  if (btn.textContent === 'Remove') {
+    [...tbody.children].forEach(r => {
+      if (r.children[0].textContent === className) r.remove();
+    });
+    btn.textContent = 'Add class';
+    btn.style.backgroundColor = '';
+    btn.style.color = '';
+    return;
+  }
+
+  const row = document.createElement('tr');
   for (let i = 0; i < 4; i++) {
     const td = document.createElement('td');
     td.textContent = cells[i].textContent;
     row.appendChild(td);
   }
+  tbody.appendChild(row)
 
-  document.getElementById('allClassesTable').appendChild(row);
+  // document.getElementById('allClassesTable').appendChild(row);
 
-  btn.textContent = 'Added';
-  btn.disabled = true;
+  btn.textContent = 'Remove';
+  btn.style.backgroundColor = 'red';
+  btn.style.color = 'white';
+  //btn.disabled = true;
 });
 
 // ==========================================
