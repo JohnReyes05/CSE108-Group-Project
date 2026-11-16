@@ -402,6 +402,12 @@ function showLoggedInUser(user) {
 //
 //
 document.getElementById('studentLogoutButton').addEventListener('click', logout);
+
+document.getElementById('studentLogoutButton').addEventListener('click', logout);
+document.getElementById('studentLogoutButton').addEventListener('click', () => {
+  document.getElementById('studentDashboard').hidden = true;
+});
+
 loginButton.addEventListener('click', async () => {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value;
