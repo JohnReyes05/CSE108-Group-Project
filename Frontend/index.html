@@ -93,26 +93,55 @@
             <!-- View enrolled courses -->
             <h2>Student Dashboard</h2>
             <button id="studentLogoutButton">Logout</button>
+            
 
-            <section>
-                <h3>My Classes</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Class Name</th>
-                            <th>Teacher</th>
-                            <th>Time</th>
-                            <th>Students Enrolled</th>
-                        </tr>
-                    </thead>
-                    <tbody >
-                        <tr>
-                            <td>Cs108</td>
-                            <td>robert anebere</td>
-                            <td>4:30</td>
-                    </tbody>
-                </table>
-            </section>
+            <div>
+                <button id="yourCourseTab">Your Courses</button>
+                <button id="addCoursesTab">Add Courses</button>
+            </div>
+
+            <div id="yourCoursesView">
+
+                <section>
+                    <h3>My Classes</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Class Name</th>
+                                <th>Teacher</th>
+                                <th>Time</th>
+                                <th>Students Enrolled</th>
+                            </tr>
+                        </thead>
+                        <tbody >
+                            <tr>
+                                <td>Cs108</td>
+                                <td>robert anebere</td>
+                                <td>4:30</td>
+                                <td>5/10</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+
+            <div id="addCoursesView" hidden>
+                <section>
+                    <h3>Add Courses</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Class Name</th><th>Teacher</th><th>Students Enrolled</th><th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Math 101</td><td>Ralph Jenkins</td><td>4/8</td><td><button>Add class</button></td></tr>
+                            <tr><td>CS 162</td><td>Ammon Hepworth</td><td>4/4</td><td><button disabled>Full</button></td></tr>
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+
             <!-- View available courses -->
             <!-- Enroll in courses -->
             <!-- Drop courses -->

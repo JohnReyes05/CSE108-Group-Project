@@ -421,6 +421,16 @@ loginButton.addEventListener('click', async () => {
   }
 });
 
+document.getElementById('yourCoursesTab').addEventListener('click', () => {
+  document.getElementById('yourCoursesView').hidden = false;
+  document.getElementById('addCoursesView').hidden = true;
+});
+
+document.getElementById('addCoursesTab').addEventListener('click', () => {
+  document.getElementById('addCoursesView').hidden = false;
+  document.getElementById('yourCoursesView').hidden = true;
+});
+
 // ==========================================
 // TEACHER DASHBOARD
 // ==========================================
