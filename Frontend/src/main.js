@@ -473,6 +473,25 @@ document.getElementById('addCoursesTab').addEventListener('click', () => {
   document.getElementById('yourCoursesView').hidden = true;
 });
 
+document.getElementById('addCoursesView').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn || btn.disabled) return;
+
+  const cells = btn.closest('tr').children;
+  const row = document.createElement('tr');
+
+  for (let i = 0; i < 4; i++) {
+    const td = document.createElement('td');
+    td.textContent = cells[i].textContent;
+    row.appendChild(td);
+  }
+
+  document.getElementById('allClassesTable').appendChild(row);
+
+  btn.textContent = 'Added';
+  btn.disabled = true;
+});
+
 // ==========================================
 // TEACHER DASHBOARD
 // ==========================================
