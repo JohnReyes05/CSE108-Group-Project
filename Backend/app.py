@@ -306,6 +306,22 @@ def get_my_classes():
         for c in user.enrolled_classes
     ])
 
+@app.route("/classes", methods=["GET"])
+def get_all_classes():
+    if session.get("user_id") is None:
+        return jsonify({"error": "Not logged in"}), 401
+    courses = Course.query.order_by(Course.name).all()
+    return jsonify([
+        {
+            "id": c.id,
+            "name": c.name,
+            "teacher": c.teacher,
+            "time": c.time,
+            "enrolled": len(c.students),
+            "capacity": c.capacity
+        }
+        for c in courses
+    ])
 
 # ==========================================
 # TEACHER ROUTES

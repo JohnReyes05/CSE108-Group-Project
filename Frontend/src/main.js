@@ -427,6 +427,42 @@ loginButton.addEventListener('click', async () => {
   }
 });
 
+
+async function loadAllClasses() {
+  const tbody = document.getElementById('allClassesTable');
+  const msg = document.getElementById('allClassesMessage');
+  tbody.replaceChildren();
+  msg.textContent = 'Loading classes';
+
+  try {
+    const response = await fetch('/classes', { credentials: 'same-origin' });
+    if (!response.ok) throw new Error('Could not load classes.');
+
+    const classes = await response.json();
+
+    classes.forEach(c => {
+      const row = document.createElement('tr');
+      [c.name, c.teacher, c.time, `${c.enrolled}/${c.capacity}`].forEach(ttext => {
+        TextDecoder.textContent = text;
+        row.appendChild(td);
+      });
+
+      const actionTd = document.createElement('td');
+      const btn = document.createElement('button')
+      const full = c.enrolled >= c.capacity;
+      btn.textContent = full ? 'Full' : 'Add class';
+      btn.disabled = full;
+      actionTd.appendChild(btn);
+      row.appendChild(actionTd);
+
+      tbody.appendChild(row);
+    });
+
+    msg.textContent = '';
+  } catch (error) {
+    msg.textContent = error.messaage;
+  }
+}
 document.getElementById('yourCoursesTab').addEventListener('click', () => {
   document.getElementById('yourCoursesView').hidden = false;
   document.getElementById('addCoursesView').hidden = true;
