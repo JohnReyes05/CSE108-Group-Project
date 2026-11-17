@@ -367,43 +367,87 @@ function showLoggedInUser(user) {
 
 // Teammate 1 adds student functions here
 
-//async function loadMyClasses() {
-//  const tbody = document.getElementById('myClassesTable');
-//  const studentMessage = document.getElementById('studentMessage');
-//  tbody.replaceChildren();
-//  studentMessage.textContent = 'Loading classes...';
-//
-//  try {
-//    const response = await fetch('/my-classes', { credentials: 'same-origin' });
-//    if (!response.ok) throw new Error('Could not load your classes.');
-//
-//    const classes = await response.json();
-//
-//    if (classes.length === 0) {
-//      studentMessage.textContent = 'You are not enrolled in any classes.';
-//      return;
-//    }
-//
-//    classes.forEach(c => {
-//      const row = document.createElement('tr');
-//      [c.name, c.teacher, c.time, `${c.enrolled}/${c.capacity}`].forEach(text => {
-//        const td = document.createElement('td');
-//        td.textContent = text;
-//        row.appendChild(td);
-//      });
-//      tbody.appendChild(row);
-//    });
-//
-//    studentMessage.textContent = '';
-//  } catch (error) {
-//    studentMessage.textContent = error.message;
-//  }
-//}
-//
-//
-document.getElementById('studentLogoutButton').addEventListener('click', logout);
+async function loadMyClasses() {
+  const tbody = document.getElementById('myClassesTable');
+  const res = await fetch('/my-classes', { credentials: 'same-origin' });
+  if (!res.ok)return;
+
+  tbody.replaceChildren();
+  (await res.json()).forEach(c => {
+    const row = document.createElement('tr');
+    [c.name, c.teacher, c.time, `${c.enrolled}/${c.capacity}`].forEach(text => {
+      const td =document.createElement('td');
+      td.textContent = text;
+      row.appendChild(td);
+    });
+    tbody.appendChild(row);
+  });
+}
+
+async function loadAllClasses() {
+  const tbody = document.getElementById('addCoursesTable');
+  const [allRes, myRes] = await Promise.all([
+    fetch('/classes', { credentials: 'same-origin' }),
+    fetch('/my-classes', { credentials: 'same-origin' })
+  ]);
+  if (!allRes.ok || !myRes.ok) return;
+
+  const myIds = new Set((await myRes.json()).map(c => c.id));
+  tbody.replaceChildren();
+
+  (await allRes.json()).forEach(c => {
+    const row = document.createElement('tr');
+    row.dataset.courseId = c.id;
+
+    [c.name, c.teacher, c.time, `${c.enrolled}/${c.capacity}`].forEach(text => {
+      const td = document.createElement('td');
+      td.textContent = text;
+      row.appendChild(td);
+    });
+
+    const btn = document.createElement('button');
+      if (myIds.has(c.id)) {
+        btn.textContent = 'Remove';
+        btn.style.backgroundColor = 'red';
+        btn.style.color = 'white';
+      } else if (c.enrolled >= c.capacity) {
+        btn.textContent = 'Full';
+        btn.disabled = true;
+      } else {
+        btn.textContent = 'Add class';
+      }
+
+      const actionTd = document.createElement('td');
+        actionTd.appendChild(btn);
+        row.appendChild(actionTd);
+        tbody.appendChild(row);
+      });
+}
+
+async function refreshStudentTables() {
+  await loadMyClasses();
+  await loadAllClasses();  
+}
+
+
+document.getElementById('addCoursesView').addEventListener('click', async (e) => {
+  const btn = e.target.closest('button');
+  if (!btn || btn.disabled) return;
+
+  const courseId = btn.closest('tr').dataset.courseId;
+  const method = btn.textContent === 'Remove' ? 'DELETE' : 'POST';
+
+  const res = await fetch(`/enroll/${courseId}`, { method, credentials: 'same-origin' });
+  const msg = document.getElementById('addCoursesMessage');
+  msg.textContent = res.ok ? '' : (await res.json()).error;
+
+  await refreshStudentTables();
+});
+
+
 
 document.getElementById('studentLogoutButton').addEventListener('click', logout);
+
 document.getElementById('studentLogoutButton').addEventListener('click', () => {
   document.getElementById('studentDashboard').hidden = true;
 });
@@ -424,45 +468,47 @@ loginButton.addEventListener('click', async () => {
   if (user.role === 'student') {
     document.getElementById('welcomeSection').hidden = true;
     document.getElementById('studentDashboard').hidden = false;
+    refreshStudentTables();
   }
 });
 
 
-async function loadAllClasses() {
-  const tbody = document.getElementById('allClassesTable');
-  const msg = document.getElementById('allClassesMessage');
-  tbody.replaceChildren();
-  msg.textContent = 'Loading classes';
+//async function loadAllClasses() {
+//  const tbody = document.getElementById('allClassesTable');
+//  const msg = document.getElementById('allClassesMessage');
+//  tbody.replaceChildren();
+//  msg.textContent = 'Loading classes';
+//
+//  try {
+//    const response = await fetch('/classes', { credentials: 'same-origin' });
+//    if (!response.ok) throw new Error('Could not load classes.');
+//
+//    const classes = await response.json();
+//
+//    classes.forEach(c => {
+//      const row = document.createElement('tr');
+//      [c.name, c.teacher, c.time, `${c.enrolled}/${c.capacity}`].forEach(ttext => {
+//        TextDecoder.textContent = text;
+//        row.appendChild(td);
+//      });
+//
+//      const actionTd = document.createElement('td');
+//      const btn = document.createElement('button')
+//      const full = c.enrolled >= c.capacity;
+//      btn.textContent = full ? 'Full' : 'Add class';
+//      btn.disabled = full;
+//      actionTd.appendChild(btn);
+//      row.appendChild(actionTd);
+//
+//      tbody.appendChild(row);
+//    });
+//
+//    msg.textContent = '';
+//  } catch (error) {
+//    msg.textContent = error.messaage;
+//  }
+//}
 
-  try {
-    const response = await fetch('/classes', { credentials: 'same-origin' });
-    if (!response.ok) throw new Error('Could not load classes.');
-
-    const classes = await response.json();
-
-    classes.forEach(c => {
-      const row = document.createElement('tr');
-      [c.name, c.teacher, c.time, `${c.enrolled}/${c.capacity}`].forEach(ttext => {
-        TextDecoder.textContent = text;
-        row.appendChild(td);
-      });
-
-      const actionTd = document.createElement('td');
-      const btn = document.createElement('button')
-      const full = c.enrolled >= c.capacity;
-      btn.textContent = full ? 'Full' : 'Add class';
-      btn.disabled = full;
-      actionTd.appendChild(btn);
-      row.appendChild(actionTd);
-
-      tbody.appendChild(row);
-    });
-
-    msg.textContent = '';
-  } catch (error) {
-    msg.textContent = error.messaage;
-  }
-}
 document.getElementById('yourCoursesTab').addEventListener('click', () => {
   document.getElementById('yourCoursesView').hidden = false;
   document.getElementById('addCoursesView').hidden = true;
@@ -473,39 +519,50 @@ document.getElementById('addCoursesTab').addEventListener('click', () => {
   document.getElementById('yourCoursesView').hidden = true;
 });
 
-document.getElementById('addCoursesView').addEventListener('click', (e) => {
-  const btn = e.target.closest('button');
-  if (!btn || btn.disabled) return;
 
-  const cells = btn.closest('tr').children;
-  const className = cells[0].textContent;
-  const tbody = document.getElementById('allClassesTable');
-
-  if (btn.textContent === 'Remove') {
-    [...tbody.children].forEach(r => {
-      if (r.children[0].textContent === className) r.remove();
-    });
-    btn.textContent = 'Add class';
-    btn.style.backgroundColor = '';
-    btn.style.color = '';
-    return;
-  }
-
-  const row = document.createElement('tr');
-  for (let i = 0; i < 4; i++) {
-    const td = document.createElement('td');
-    td.textContent = cells[i].textContent;
-    row.appendChild(td);
-  }
-  tbody.appendChild(row)
-
-  // document.getElementById('allClassesTable').appendChild(row);
-
-  btn.textContent = 'Remove';
-  btn.style.backgroundColor = 'red';
-  btn.style.color = 'white';
-  //btn.disabled = true;
-});
+//document.getElementById('addCoursesView').addEventListener('click', (e) => {
+//  const btn = e.target.closest('button');
+//  if (!btn || btn.disabled) return;
+//
+//  const addRow = btn.closest('tr');
+//  const cells = btn.closest('tr').children;
+//  const className = cells[0].textContent;
+//  const tbody = document.getElementById('allClassesTable');
+//
+//
+//  const [enrolled, capacity] = cells[3].textContent.split('/').map(Number);
+//
+//
+//  if (btn.textContent === 'Remove') {
+//    [...tbody.children].forEach(r => {
+//      if (r.children[0].textContent === className) r.remove();
+//    });
+//
+//    cells[3].textContent = `${enrolled - 1}/${capacity}`;
+//    btn.textContent = 'Add class';
+//    btn.style.backgroundColor = '';
+//    btn.style.color = '';
+//    return;
+//  }
+//
+//  const newCount = `${enrolled + 1}/${capacity}`;
+//  cells[3].textContent = newCount;
+//
+//  const row = document.createElement('tr');
+//  for (let i = 0; i < 4; i++) {
+//    const td = document.createElement('td');
+//    td.textContent = cells[i].textContent;
+//    row.appendChild(td);
+//  }
+//  tbody.appendChild(row)
+//
+//  // document.getElementById('allClassesTable').appendChild(row);
+//
+//  btn.textContent = 'Remove';
+//  btn.style.backgroundColor = 'red';
+//  btn.style.color = 'white';
+//  //btn.disabled = true;
+//});
 
 // ==========================================
 // TEACHER DASHBOARD
