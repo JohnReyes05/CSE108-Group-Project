@@ -322,6 +322,7 @@ async function logout() {
 
         dashboard.hidden = true;
         document.getElementById('welcomeSection').hidden = true;
+        document.getElementById('studentDashboard').hidden = true;
         hideTeacherDashboard();
         loginSection.hidden = false;
 
@@ -338,32 +339,40 @@ logoutButton.addEventListener('click', logout);
 
 document.getElementById('welcomeLogoutButton')
     .addEventListener('click', logout);
+
 function showLoggedInUser(user) {
     loginSection.hidden = true;
-    
+
     dashboard.hidden = true;
     teacherDashboard.hidden = true;
+    document.getElementById('studentDashboard').hidden = true;
     document.getElementById('welcomeSection').hidden = true;
-    
+
     if (user.role === 'admin') {
         dashboard.hidden = false;
-        document.getElementById('welcomeSection').hidden = true;
+
         getAllGrades();
         getAllUsers();
         getAllCourses();
         loadTeachers();
-    } else if (user.role === 'teacher') {
-        dashboard.hidden = true;
-        document.getElementById('welcomeSection').hidden = true;
-        showTeacherDashboard(user);
-    } else {
-        dashboard.hidden = true;
-        document.getElementById('welcomeSection').hidden = false;
 
-        document.getElementById('welcomeMessage').textContent =
-            `Welcome, ${user.username}!`;
+    } else if (user.role === 'teacher') {
+        showTeacherDashboard(user);
+
+    } else if (user.role === 'student') {
+        document.getElementById('studentDashboard').hidden = false;
+
+        document.getElementById('yourCoursesView').hidden = false;
+        document.getElementById('addCoursesView').hidden = true;
+
+        refreshStudentTables();
+
+    } else {
+        loginSection.hidden = false;
+        loginMessage.textContent = 'Unknown account role.';
     }
 }
+
 // ==========================================
 // ADMIN DASHBOARD
 // ==========================================
@@ -872,66 +881,6 @@ document.getElementById('addCoursesView').addEventListener('click', async (e) =>
 
 document.getElementById('studentLogoutButton').addEventListener('click', logout);
 
-document.getElementById('studentLogoutButton').addEventListener('click', () => {
-  document.getElementById('studentDashboard').hidden = true;
-});
-
-loginButton.addEventListener('click', async () => {
-  const username = document.getElementById('loginUsername').value.trim();
-  const password = document.getElementById('loginPassword').value;
-
-  const response = await fetch('/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
-    body: JSON.stringify({ username, password })
-  });
-  if (!response.ok) return;
-
-  const user = await response.json();
-  if (user.role === 'student') {
-    document.getElementById('welcomeSection').hidden = true;
-    document.getElementById('studentDashboard').hidden = false;
-    refreshStudentTables();
-  }
-});
-
-
-//async function loadAllClasses() {
-//  const tbody = document.getElementById('allClassesTable');
-//  const msg = document.getElementById('allClassesMessage');
-//  tbody.replaceChildren();
-//  msg.textContent = 'Loading classes';
-//
-//  try {
-//    const response = await fetch('/classes', { credentials: 'same-origin' });
-//    if (!response.ok) throw new Error('Could not load classes.');
-//
-//    const classes = await response.json();
-//
-//    classes.forEach(c => {
-//      const row = document.createElement('tr');
-//      [c.name, c.teacher, c.time, `${c.enrolled}/${c.capacity}`].forEach(ttext => {
-//        TextDecoder.textContent = text;
-//        row.appendChild(td);
-//      });
-//
-//      const actionTd = document.createElement('td');
-//      const btn = document.createElement('button')
-//      const full = c.enrolled >= c.capacity;
-//      btn.textContent = full ? 'Full' : 'Add class';
-//      btn.disabled = full;
-//      actionTd.appendChild(btn);
-//      row.appendChild(actionTd);
-//
-//      tbody.appendChild(row);
-//    });
-//
-//    msg.textContent = '';
-//  } catch (error) {
-//    msg.textContent = error.messaage;
-//  }
-//}
 
 document.getElementById('yourCoursesTab').addEventListener('click', () => {
   document.getElementById('yourCoursesView').hidden = false;
@@ -943,50 +892,6 @@ document.getElementById('addCoursesTab').addEventListener('click', () => {
   document.getElementById('yourCoursesView').hidden = true;
 });
 
-
-//document.getElementById('addCoursesView').addEventListener('click', (e) => {
-//  const btn = e.target.closest('button');
-//  if (!btn || btn.disabled) return;
-//
-//  const addRow = btn.closest('tr');
-//  const cells = btn.closest('tr').children;
-//  const className = cells[0].textContent;
-//  const tbody = document.getElementById('allClassesTable');
-//
-//
-//  const [enrolled, capacity] = cells[3].textContent.split('/').map(Number);
-//
-//
-//  if (btn.textContent === 'Remove') {
-//    [...tbody.children].forEach(r => {
-//      if (r.children[0].textContent === className) r.remove();
-//    });
-//
-//    cells[3].textContent = `${enrolled - 1}/${capacity}`;
-//    btn.textContent = 'Add class';
-//    btn.style.backgroundColor = '';
-//    btn.style.color = '';
-//    return;
-//  }
-//
-//  const newCount = `${enrolled + 1}/${capacity}`;
-//  cells[3].textContent = newCount;
-//
-//  const row = document.createElement('tr');
-//  for (let i = 0; i < 4; i++) {
-//    const td = document.createElement('td');
-//    td.textContent = cells[i].textContent;
-//    row.appendChild(td);
-//  }
-//  tbody.appendChild(row)
-//
-//  // document.getElementById('allClassesTable').appendChild(row);
-//
-//  btn.textContent = 'Remove';
-//  btn.style.backgroundColor = 'red';
-//  btn.style.color = 'white';
-//  //btn.disabled = true;
-//});
 
 // ==========================================
 // TEACHER DASHBOARD
