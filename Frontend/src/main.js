@@ -350,6 +350,8 @@ function showLoggedInUser(user) {
         document.getElementById('welcomeSection').hidden = true;
         getAllGrades();
         getAllUsers();
+        getAllCourses();
+        loadTeachers();
     } else if (user.role === 'teacher') {
         dashboard.hidden = true;
         document.getElementById('welcomeSection').hidden = true;
@@ -554,7 +556,235 @@ document.getElementById('createUserButton')
             createUserMessage.textContent = 'Could not connect to the server.';
         }
     });
-    
+const coursesTable = document.getElementById('coursesTable');
+const coursesMessage = document.getElementById('coursesMessage');
+
+async function getAllCourses() {
+    try {
+        coursesMessage.textContent = 'Loading courses...';
+
+        const response = await fetch('/admin/courses');
+
+        if (!response.ok) {
+            throw new Error('Could not retrieve courses.');
+        }
+
+        const courses = await response.json();
+
+        displayCourses(courses);
+
+        coursesMessage.textContent =
+            courses.length === 0 ? 'No courses available.' : '';
+
+    } catch (error) {
+        coursesMessage.textContent = error.message;
+    }
+}
+function displayCourses(courses) {
+    coursesTable.replaceChildren();
+
+    courses.forEach(course => {
+        const row = document.createElement('tr');
+
+        const idCell = document.createElement('td');
+        idCell.textContent = course.id;
+
+        const nameCell = document.createElement('td');
+        nameCell.textContent = course.name;
+
+        const teacherCell = document.createElement('td');
+        teacherCell.textContent = course.teacher;
+
+        const timeCell = document.createElement('td');
+        timeCell.textContent = course.time;
+
+        const enrolledCell = document.createElement('td');
+        enrolledCell.textContent =
+            `${course.enrolled}/${course.capacity}`;
+        const actionsCell = document.createElement('td');
+
+        const editButton = document.createElement('button');
+        editButton.textContent = 'Edit';
+
+        editButton.addEventListener('click', () => {
+            editCourse(course);
+        });
+
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Delete';
+
+        deleteButton.addEventListener('click', () => {
+            deleteCourse(course);
+        });
+
+        actionsCell.append(editButton, deleteButton);
+        row.append(
+            idCell,
+            nameCell,
+            teacherCell,
+            timeCell,
+            enrolledCell,
+            actionsCell
+        );
+
+        coursesTable.appendChild(row);
+    });
+}
+async function editCourse(course) {
+    const name = window.prompt('Course name:', course.name);
+    if (name === null) return;
+
+    const time = window.prompt('Course schedule:', course.time);
+    if (time === null) return;
+
+    const capacityInput = window.prompt('Course capacity:', course.capacity);
+    if (capacityInput === null) return;
+
+    const teacherInput = window.prompt('Teacher ID:', course.teacher_id);
+    if (teacherInput === null) return;
+
+    const capacity = Number(capacityInput);
+    const teacher_id = Number(teacherInput);
+
+    if (!name.trim() || !time.trim() ||
+        !Number.isInteger(capacity) || capacity <= 0 ||
+        !Number.isInteger(teacher_id) || teacher_id <= 0) {
+        coursesMessage.textContent = 'Please enter valid course information.';
+        return;
+    }
+
+    try {
+        const response = await fetch(`/admin/courses/${course.id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: name.trim(),
+                time: time.trim(),
+                capacity,
+                teacher_id
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Could not update course.');
+        }
+
+        await getAllCourses();
+        coursesMessage.textContent = data.message;
+
+    } catch (error) {
+        coursesMessage.textContent = error.message;
+    }
+}
+async function deleteCourse(course) {
+    const confirmed = window.confirm(
+        `Are you sure you want to delete ${course.name}?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch(`/admin/courses/${course.id}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Could not delete course.');
+        }
+
+        await getAllCourses();
+        coursesMessage.textContent = data.message;
+
+    } catch (error) {
+        coursesMessage.textContent = error.message;
+    }
+}
+document.getElementById('refreshCoursesButton')
+    .addEventListener('click', getAllCourses);
+
+const createCourseForm = document.getElementById('createCourseForm');
+const courseTeacher = document.getElementById('courseTeacher');
+const createCourseMessage = document.getElementById('createCourseMessage');
+
+async function loadTeachers() {
+    try {
+        const response = await fetch('/admin/users');
+
+        if (!response.ok) {
+            throw new Error('Could not load teachers.');
+        }
+
+        const users = await response.json();
+
+        const teachers = users.filter(user => user.role === 'teacher');
+
+        courseTeacher.replaceChildren();
+
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Select a teacher';
+        courseTeacher.appendChild(placeholder);
+
+        teachers.forEach(teacher => {
+            const option = document.createElement('option');
+
+            option.value = teacher.id;
+            option.textContent = teacher.username;
+
+            courseTeacher.appendChild(option);
+        });
+
+    } catch (error) {
+        createCourseMessage.textContent = error.message;
+    }
+}
+createCourseForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const name = document.getElementById('courseName').value.trim();
+    const time = document.getElementById('courseTime').value.trim();
+    const capacity = Number(document.getElementById('courseCapacity').value);
+    const teacher_id = Number(courseTeacher.value);
+
+    createCourseMessage.textContent = '';
+
+    try {
+        const response = await fetch('/admin/courses', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: name,
+                time: time,
+                capacity: capacity,
+                teacher_id: teacher_id
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || 'Could not create course.');
+        }
+
+        createCourseMessage.textContent = result.message;
+
+        createCourseForm.reset();
+
+        await getAllCourses();
+
+    } catch (error) {
+        createCourseMessage.textContent = error.message;
+    }
+});
+
 // ==========================================
 // STUDENT DASHBOARD
 // ==========================================

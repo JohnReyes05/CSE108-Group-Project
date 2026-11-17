@@ -169,6 +169,11 @@ def frontend_files(path):
 # Get all students and grades
 @app.route("/grades", methods=["GET"])
 def get_all_grades():
+    admin, error = require_admin()
+
+    if error:
+        return error
+
     students = Grade.query.order_by(Grade.name).all()
 
     return jsonify([
@@ -180,6 +185,10 @@ def get_all_grades():
 # Get one student's grade
 @app.route("/grades/<string:name>", methods=["GET"])
 def get_grade(name):
+    admin, error = require_admin()
+
+    if error:
+        return error
     student = Grade.query.filter_by(name=name).first()
 
     if student is None:
@@ -217,6 +226,10 @@ def read_grade():
 # Add a new student
 @app.route("/grades", methods=["POST"])
 def add_grade():
+    admin, error = require_admin()
+
+    if error:
+        return error
     data = request.get_json(silent=True)
 
     if not isinstance(data, dict):
@@ -253,6 +266,10 @@ def add_grade():
 # Update a student's grade
 @app.route("/grades/<string:name>", methods=["PUT"])
 def update_grade(name):
+    admin, error = require_admin()
+
+    if error:
+        return error
     student = Grade.query.filter_by(name=name).first()
 
     if student is None:
@@ -276,6 +293,10 @@ def update_grade(name):
 # Delete a student and their grade
 @app.route("/grades/<string:name>", methods=["DELETE"])
 def delete_grade(name):
+    admin, error = require_admin()
+
+    if error:
+        return error
     student = Grade.query.filter_by(name=name).first()
 
     if student is None:
@@ -456,6 +477,177 @@ def admin_update_user(user_id):
         "id": user.id,
         "username": user.username,
         "role": user.role
+    }), 200
+@app.route("/admin/courses", methods=["GET"])
+def admin_get_courses():
+    admin, error = require_admin()
+
+    if error:
+        return error
+
+    courses = Course.query.order_by(Course.name).all()
+
+    return jsonify([
+        {
+            "id": course.id,
+            "name": course.name,
+            "teacher_id": course.teacher_id,
+            "teacher": course.teacher.display_name(),
+            "time": course.time,
+            "capacity": course.capacity,
+            "enrolled": len(course.enrollments)
+        }
+        for course in courses
+    ]), 200
+@app.route("/admin/courses", methods=["POST"])
+def admin_create_course():
+    admin, error = require_admin()
+
+    if error:
+        return error
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({"error": "Invalid request data."}), 400
+
+    name = data.get("name")
+    time = data.get("time")
+    capacity = data.get("capacity")
+    teacher_id = data.get("teacher_id")
+    if not isinstance(name, str) or not name.strip():
+        return jsonify({"error": "Course name is required."}), 400
+
+    if not isinstance(time, str) or not time.strip():
+        return jsonify({"error": "Course time is required."}), 400
+
+    if type(capacity) is not int or capacity <= 0:
+        return jsonify({"error": "Capacity must be a positive integer."}), 400
+
+    if type(teacher_id) is not int:
+        return jsonify({"error": "Invalid teacher ID."}), 400
+
+    name = name.strip()
+    time = time.strip()
+    teacher = db.session.get(User, teacher_id)
+
+    if teacher is None or teacher.role != "teacher":
+        return jsonify({
+            "error": "Please select a valid teacher."
+        }), 400
+    existing_course = Course.query.filter_by(name=name).first()
+
+    if existing_course is not None:
+        return jsonify({
+            "error": "A course with that name already exists."
+        }), 409
+    new_course = Course(
+        name=name,
+        time=time,
+        capacity=capacity,
+        teacher_id=teacher_id
+    )
+
+    db.session.add(new_course)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Course created successfully.",
+        "id": new_course.id,
+        "name": new_course.name,
+        "teacher": teacher.display_name(),
+        "time": new_course.time,
+        "capacity": new_course.capacity
+    }), 201
+@app.route("/admin/courses/<int:course_id>", methods=["PUT"])
+def admin_update_course(course_id):
+    admin, error = require_admin()
+
+    if error:
+        return error
+
+    course = db.session.get(Course, course_id)
+
+    if course is None:
+        return jsonify({"error": "Course not found."}), 404
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({"error": "Invalid request data."}), 400
+
+    name = data.get("name")
+    time = data.get("time")
+    capacity = data.get("capacity")
+    teacher_id = data.get("teacher_id")
+
+    if not isinstance(name, str) or not name.strip():
+        return jsonify({"error": "Course name is required."}), 400
+
+    if not isinstance(time, str) or not time.strip():
+        return jsonify({"error": "Course time is required."}), 400
+
+    if type(capacity) is not int or capacity <= 0:
+        return jsonify({"error": "Capacity must be a positive integer."}), 400
+
+    if type(teacher_id) is not int:
+        return jsonify({"error": "Invalid teacher ID."}), 400
+
+    teacher = db.session.get(User, teacher_id)
+
+    if teacher is None or teacher.role != "teacher":
+        return jsonify({"error": "Please select a valid teacher."}), 400
+
+    name = name.strip()
+    time = time.strip()
+
+    existing_course = Course.query.filter_by(name=name).first()
+
+    if existing_course is not None and existing_course.id != course.id:
+        return jsonify({"error": "Course name already exists."}), 409
+
+    if capacity < len(course.enrollments):
+        return jsonify({
+            "error": "Capacity cannot be smaller than current enrollment."
+        }), 400
+
+    course.name = name
+    course.time = time
+    course.capacity = capacity
+    course.teacher_id = teacher_id
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "Course updated successfully.",
+        "id": course.id,
+        "name": course.name,
+        "time": course.time,
+        "capacity": course.capacity,
+        "teacher_id": course.teacher_id
+    }), 200
+@app.route("/admin/courses/<int:course_id>", methods=["DELETE"])
+def admin_delete_course(course_id):
+    admin, error = require_admin()
+
+    if error:
+        return error
+
+    course = db.session.get(Course, course_id)
+
+    if course is None:
+        return jsonify({"error": "Course not found."}), 404
+
+    if len(course.enrollments) > 0:
+        return jsonify({
+            "error": "Cannot delete a course with enrolled students."
+        }), 409
+
+    db.session.delete(course)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Course deleted successfully."
     }), 200
 # ==========================================
 # STUDENT ROUTES

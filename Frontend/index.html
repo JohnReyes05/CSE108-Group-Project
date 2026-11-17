@@ -66,9 +66,8 @@
             <table>
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>Username</th>
-                        <th>Role</th>
+                        <th>Student Name</th>
+                        <th>Grade</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -76,39 +75,97 @@
                 </tbody>
             </table>
         </section>
+        
         <section>
             <h2>Manage Users</h2>
-                            
+        
             <h3>Create User</h3>
-
+        
             <input type="text" id="createUsername" placeholder="Username">
-                    
             <input type="password" id="createPassword" placeholder="Password">
-                    
+        
             <select id="createRole">
                 <option value="student">Student</option>
                 <option value="teacher">Teacher</option>
                 <option value="admin">Admin</option>
             </select>
-            
+        
             <button id="createUserButton">Create User</button>
-            
+        
             <p id="createUserMessage"></p>
+        
             <button id="refreshUsersButton">Refresh Users</button>
-
             <p id="usersMessage"></p>
-
+        
             <table>
                 <thead>
                     <tr>
                         <th>ID</th>
                         <th>Username</th>
                         <th>Role</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="usersTable"></tbody>
             </table>
         </section>
+        
+        <section>
+            <h2>Manage Courses</h2>
+        
+            <h3>Create Course</h3>
+        
+            <form id="createCourseForm">
+                <input
+                    id="courseName"
+                    type="text"
+                    placeholder="Course Name (e.g. CSE 108)"
+                    required
+                >
+            
+                <input
+                    id="courseTime"
+                    type="text"
+                    placeholder="Schedule (e.g. MWF 10:00 AM)"
+                    required
+                >
+            
+                <input
+                    id="courseCapacity"
+                    type="number"
+                    placeholder="Capacity"
+                    min="1"
+                    step="1"
+                    required
+                >
+            
+                <select id="courseTeacher" required>
+                    <option value="">Select a teacher</option>
+                </select>
+            
+                <button type="submit">Create Course</button>
+            </form>
+        
+            <p id="createCourseMessage"></p>
+        
+            <button id="refreshCoursesButton">Refresh Courses</button>
+            <p id="coursesMessage"></p>
+        
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Course</th>
+                        <th>Teacher</th>
+                        <th>Time</th>
+                        <th>Enrollment</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="coursesTable"></tbody>
+            </table>
+        </section>
+
         </div>
     </div>
     <!-- ====================================== -->
