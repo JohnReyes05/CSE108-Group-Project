@@ -39,11 +39,52 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False)
 
+    name = db.Column(db.String(100), nullable=True)
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    def display_name(self):
+        return self.name or self.username
+
+
+# class offered by school taught by teacher
+# student can see and enroll in classes, teachers see their own classes and students and can edit grades
+class Course(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    time = db.Column(db.String(100), nullable=False)
+    capacity = db.Column(db.Integer, nullable=False)
+    teacher_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+
+    teacher = db.relationship("User")
+    enrollments = db.relationship(
+        "Enrollment",
+        back_populates="course",
+        cascade="all, delete-orphan"
+    )
+
+
+# table showing which students are enrolled in which classes, and their grades
+# grade is empty until one is
+class Enrollment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+
+    student_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey("course.id"), nullable=False)
+    grade = db.Column(db.Float, nullable=True)
+
+    student = db.relationship("User")
+    course = db.relationship("Course", back_populates="enrollments")
+
+    # a student can only be enrolled in the same course once
+    __table_args__ = (
+        db.UniqueConstraint("student_id", "course_id"),
+    )
 
 # Create the database table if it does not exist
 with app.app_context():
@@ -82,6 +123,7 @@ def login():
 
     return jsonify({
         "username": user.username,
+        "name": user.display_name(),
         "role": user.role
     }), 200
 @app.route("/logout", methods=["POST"])
@@ -106,6 +148,7 @@ def current_user():
 
     return jsonify({
         "username": user.username,
+        "name": user.display_name(),
         "role": user.role
     }), 200
 @app.route("/")
@@ -126,6 +169,11 @@ def frontend_files(path):
 # Get all students and grades
 @app.route("/grades", methods=["GET"])
 def get_all_grades():
+    admin, error = require_admin()
+
+    if error:
+        return error
+
     students = Grade.query.order_by(Grade.name).all()
 
     return jsonify([
@@ -137,6 +185,10 @@ def get_all_grades():
 # Get one student's grade
 @app.route("/grades/<string:name>", methods=["GET"])
 def get_grade(name):
+    admin, error = require_admin()
+
+    if error:
+        return error
     student = Grade.query.filter_by(name=name).first()
 
     if student is None:
@@ -174,6 +226,10 @@ def read_grade():
 # Add a new student
 @app.route("/grades", methods=["POST"])
 def add_grade():
+    admin, error = require_admin()
+
+    if error:
+        return error
     data = request.get_json(silent=True)
 
     if not isinstance(data, dict):
@@ -210,6 +266,10 @@ def add_grade():
 # Update a student's grade
 @app.route("/grades/<string:name>", methods=["PUT"])
 def update_grade(name):
+    admin, error = require_admin()
+
+    if error:
+        return error
     student = Grade.query.filter_by(name=name).first()
 
     if student is None:
@@ -233,6 +293,10 @@ def update_grade(name):
 # Delete a student and their grade
 @app.route("/grades/<string:name>", methods=["DELETE"])
 def delete_grade(name):
+    admin, error = require_admin()
+
+    if error:
+        return error
     student = Grade.query.filter_by(name=name).first()
 
     if student is None:
@@ -251,19 +315,643 @@ def delete_grade(name):
 # Existing grade management routes
 # Additional admin routes will go here
 
+def require_admin():
+    user_id = session.get("user_id")
 
+    if user_id is None:
+        return None, (jsonify({"error": "Not logged in."}), 401)
+
+    user = db.session.get(User, user_id)
+
+    if user is None:
+        session.clear()
+        return None, (jsonify({"error": "Not logged in."}), 401)
+
+    if user.role != "admin":
+        return None, (jsonify({"error": "Admin access required."}), 403)
+
+    return user, None
+
+@app.route("/admin/users", methods=["GET"])
+def admin_get_users():
+    admin, error = require_admin()
+
+    if error:
+        return error
+
+    users = User.query.order_by(User.username).all()
+
+    return jsonify([
+        {
+            "id": user.id,
+            "username": user.username,
+            
+            "role": user.role
+        }
+        for user in users
+    ]), 200
+@app.route("/admin/users", methods=["POST"])
+def admin_create_user():
+    admin, error = require_admin()
+
+    if error:
+        return error
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({"error": "Invalid request data."}), 400
+
+    username = data.get("username")
+    password = data.get("password")
+    role = data.get("role")
+    if (
+        not isinstance(username, str)
+        or not username.strip()
+        or not isinstance(password, str)
+        or not password
+    ):
+        return jsonify({
+            "error": "Username and password are required."
+        }), 400
+
+    username = username.strip()
+
+    if role not in ("student", "teacher", "admin"):
+        return jsonify({"error": "Invalid role."}), 400
+
+    if len(password) < 8:
+        return jsonify({
+            "error": "Password must contain at least 8 characters."
+        }), 400
+    existing_user = User.query.filter_by(username=username).first()
+
+    if existing_user is not None:
+        return jsonify({
+            "error": "Username already exists."
+        }), 409
+    new_user = User(
+        username=username,
+        role=role
+    )
+
+    new_user.set_password(password)
+
+    db.session.add(new_user)
+    db.session.commit()
+    
+
+    return jsonify({
+        "message": "User created successfully.",
+        "id": new_user.id,
+        "username": new_user.username,
+        "role": new_user.role
+    }), 201
+@app.route("/admin/users/<int:user_id>", methods=["DELETE"])
+def admin_delete_user(user_id):
+    admin, error = require_admin()
+
+    if error:
+        return error
+
+    user = db.session.get(User, user_id)
+
+    if user is None:
+        return jsonify({"error": "User not found."}), 404
+
+    if user.id == admin.id:
+        return jsonify({
+            "error": "You cannot delete your own account."
+        }), 403
+    assigned_courses = Course.query.filter_by(
+        teacher_id=user.id
+    ).first()
+
+    if assigned_courses is not None:
+        return jsonify({
+            "error": "Cannot delete a teacher assigned to courses."
+        }), 409
+
+    enrollment = Enrollment.query.filter_by(
+        student_id=user.id
+    ).first()
+
+    if enrollment is not None:
+        return jsonify({
+            "error": "Cannot delete a student enrolled in courses."
+        }), 409
+    db.session.delete(user)
+    db.session.commit()
+
+    return jsonify({
+        "message": "User deleted successfully."
+    }), 200
+@app.route("/admin/users/<int:user_id>", methods=["PUT"])
+def admin_update_user(user_id):
+    admin, error = require_admin()
+
+    if error:
+        return error
+
+    user = db.session.get(User, user_id)
+
+    if user is None:
+        return jsonify({"error": "User not found."}), 404
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({"error": "Invalid request data."}), 400
+
+    username = data.get("username")
+    role = data.get("role")
+
+    if not isinstance(username, str) or not username.strip():
+        return jsonify({"error": "Username is required."}), 400
+
+    username = username.strip()
+
+    if role not in ("student", "teacher", "admin"):
+        return jsonify({"error": "Invalid role."}), 400
+
+    if user.id == admin.id and role != "admin":
+        return jsonify({
+            "error": "You cannot remove your own admin role."
+        }), 403
+    if role != "teacher":
+        assigned_course = Course.query.filter_by(
+            teacher_id=user.id
+        ).first()
+
+        if assigned_course is not None:
+            return jsonify({
+                "error": "Cannot change the role of a teacher assigned to courses."
+            }), 409
+
+    if role != "student":
+        enrollment = Enrollment.query.filter_by(
+            student_id=user.id
+        ).first()
+
+        if enrollment is not None:
+            return jsonify({
+                "error": "Cannot change the role of an enrolled student."
+            }), 409
+    existing_user = User.query.filter_by(username=username).first()
+
+    if existing_user is not None and existing_user.id != user.id:
+        return jsonify({"error": "Username already exists."}), 409
+
+    user.username = username
+    user.role = role
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "User updated successfully.",
+        "id": user.id,
+        "username": user.username,
+        "role": user.role
+    }), 200
+@app.route("/admin/courses", methods=["GET"])
+def admin_get_courses():
+    admin, error = require_admin()
+
+    if error:
+        return error
+
+    courses = Course.query.order_by(Course.name).all()
+
+    return jsonify([
+        {
+            "id": course.id,
+            "name": course.name,
+            "teacher_id": course.teacher_id,
+            "teacher": course.teacher.display_name(),
+            "time": course.time,
+            "capacity": course.capacity,
+            "enrolled": len(course.enrollments)
+        }
+        for course in courses
+    ]), 200
+@app.route("/admin/courses", methods=["POST"])
+def admin_create_course():
+    admin, error = require_admin()
+
+    if error:
+        return error
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({"error": "Invalid request data."}), 400
+
+    name = data.get("name")
+    time = data.get("time")
+    capacity = data.get("capacity")
+    teacher_id = data.get("teacher_id")
+    if not isinstance(name, str) or not name.strip():
+        return jsonify({"error": "Course name is required."}), 400
+
+    if not isinstance(time, str) or not time.strip():
+        return jsonify({"error": "Course time is required."}), 400
+
+    if type(capacity) is not int or capacity <= 0:
+        return jsonify({"error": "Capacity must be a positive integer."}), 400
+
+    if type(teacher_id) is not int:
+        return jsonify({"error": "Invalid teacher ID."}), 400
+
+    name = name.strip()
+    time = time.strip()
+    teacher = db.session.get(User, teacher_id)
+
+    if teacher is None or teacher.role != "teacher":
+        return jsonify({
+            "error": "Please select a valid teacher."
+        }), 400
+    existing_course = Course.query.filter_by(name=name).first()
+
+    if existing_course is not None:
+        return jsonify({
+            "error": "A course with that name already exists."
+        }), 409
+    new_course = Course(
+        name=name,
+        time=time,
+        capacity=capacity,
+        teacher_id=teacher_id
+    )
+
+    db.session.add(new_course)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Course created successfully.",
+        "id": new_course.id,
+        "name": new_course.name,
+        "teacher": teacher.display_name(),
+        "time": new_course.time,
+        "capacity": new_course.capacity
+    }), 201
+@app.route("/admin/courses/<int:course_id>", methods=["PUT"])
+def admin_update_course(course_id):
+    admin, error = require_admin()
+
+    if error:
+        return error
+
+    course = db.session.get(Course, course_id)
+
+    if course is None:
+        return jsonify({"error": "Course not found."}), 404
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({"error": "Invalid request data."}), 400
+
+    name = data.get("name")
+    time = data.get("time")
+    capacity = data.get("capacity")
+    teacher_id = data.get("teacher_id")
+
+    if not isinstance(name, str) or not name.strip():
+        return jsonify({"error": "Course name is required."}), 400
+
+    if not isinstance(time, str) or not time.strip():
+        return jsonify({"error": "Course time is required."}), 400
+
+    if type(capacity) is not int or capacity <= 0:
+        return jsonify({"error": "Capacity must be a positive integer."}), 400
+
+    if type(teacher_id) is not int:
+        return jsonify({"error": "Invalid teacher ID."}), 400
+
+    teacher = db.session.get(User, teacher_id)
+
+    if teacher is None or teacher.role != "teacher":
+        return jsonify({"error": "Please select a valid teacher."}), 400
+
+    name = name.strip()
+    time = time.strip()
+
+    existing_course = Course.query.filter_by(name=name).first()
+
+    if existing_course is not None and existing_course.id != course.id:
+        return jsonify({"error": "Course name already exists."}), 409
+
+    if capacity < len(course.enrollments):
+        return jsonify({
+            "error": "Capacity cannot be smaller than current enrollment."
+        }), 400
+
+    course.name = name
+    course.time = time
+    course.capacity = capacity
+    course.teacher_id = teacher_id
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "Course updated successfully.",
+        "id": course.id,
+        "name": course.name,
+        "time": course.time,
+        "capacity": course.capacity,
+        "teacher_id": course.teacher_id
+    }), 200
+@app.route("/admin/courses/<int:course_id>", methods=["DELETE"])
+def admin_delete_course(course_id):
+    admin, error = require_admin()
+
+    if error:
+        return error
+
+    course = db.session.get(Course, course_id)
+
+    if course is None:
+        return jsonify({"error": "Course not found."}), 404
+
+    if len(course.enrollments) > 0:
+        return jsonify({
+            "error": "Cannot delete a course with enrolled students."
+        }), 409
+
+    db.session.delete(course)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Course deleted successfully."
+    }), 200
 # ==========================================
 # STUDENT ROUTES
 # ==========================================
 
 # Teammate 1 adds student routes here
 
+with app.app_context():
+    db.create_all()
+
+    #if Course.query.count() == 0:
+    #    courses = [
+    #        Course(name="j", teacher="j", time="11:00-12:00", capacity=10),
+    #        Course(name="k", teacher="k", time="12:00-13:00", capacity=10),
+    #        Course(name="l", teacher="l", time="13:00-14:00", capacity=10),   
+    #    ]
+    #    db.session.add_all(courses)
+    #    for s in User.query.filter_by(role="student").all():
+    #        s.enrolled_classes.extend(courses[:2])
+    #    db.session.commit()
+
+
+@app.route("/my-classes", methods=["GET"])
+def get_my_classes():
+    student, error = require_role("student")
+
+    if error:
+        return error
+
+    enrollments = Enrollment.query.filter_by(
+        student_id=student.id
+    ).all()
+
+    return jsonify([
+        {
+            "id": enrollment.course.id,
+            "name": enrollment.course.name,
+            "teacher": enrollment.course.teacher.display_name(),
+            "time": enrollment.course.time,
+            "enrolled": len(enrollment.course.enrollments),
+            "capacity": enrollment.course.capacity
+        }
+        for enrollment in enrollments
+    ]), 200
+
+
+@app.route("/classes", methods=["GET"])
+def get_all_classes():
+    student, error = require_role("student")
+
+    if error:
+        return error
+
+    courses = Course.query.order_by(Course.name).all()
+
+    return jsonify([
+        {
+            "id": course.id,
+            "name": course.name,
+            "teacher": course.teacher.display_name(),
+            "time": course.time,
+            "enrolled": len(course.enrollments),
+            "capacity": course.capacity
+        }
+        for course in courses
+    ]), 200
+
+
+@app.route("/enroll/<int:course_id>", methods=["POST"])
+def enroll(course_id):
+    student, error = require_role("student")
+
+    if error:
+        return error
+
+    course = db.session.get(Course, course_id)
+
+    if course is None:
+        return jsonify({"error": "Class not found."}), 404
+
+    existing_enrollment = Enrollment.query.filter_by(
+        student_id=student.id,
+        course_id=course.id
+    ).first()
+
+    if existing_enrollment is not None:
+        return jsonify({"error": "Already enrolled."}), 409
+
+    enrolled_count = Enrollment.query.filter_by(
+        course_id=course.id
+    ).count()
+
+    if enrolled_count >= course.capacity:
+        return jsonify({"error": "Class is full."}), 409
+
+    new_enrollment = Enrollment(
+        student_id=student.id,
+        course_id=course.id
+    )
+
+    db.session.add(new_enrollment)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Enrolled successfully."
+    }), 201
+
+
+@app.route("/enroll/<int:course_id>", methods=["DELETE"])
+def drop(course_id):
+    student, error = require_role("student")
+
+    if error:
+        return error
+
+    enrollment = Enrollment.query.filter_by(
+        student_id=student.id,
+        course_id=course_id
+    ).first()
+
+    if enrollment is None:
+        return jsonify({
+            "error": "You are not enrolled in this course."
+        }), 404
+
+    db.session.delete(enrollment)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Course dropped successfully."
+    }), 200
+
 
 # ==========================================
 # TEACHER ROUTES
 # ==========================================
 
-# Teammate 2 adds teacher routes here
+# returns (user, None) if the logged-in user has the given role
+# (None, error_response) if they are not logged in / not allowed
+# The student routes can reuse this with require_role("student")
+def require_role(role):
+    user_id = session.get("user_id")
+
+    if user_id is None:
+        return None, (jsonify({"error": "Not logged in."}), 401)
+
+    user = db.session.get(User, user_id)
+
+    if user is None:
+        session.clear()
+        return None, (jsonify({"error": "Not logged in."}), 401)
+
+    if user.role != role:
+        return None, (jsonify({"error": "You do not have access to this."}), 403)
+
+    return user, None
+
+
+# finds a course by ID and checks that the given teacher teaches it
+def get_teacher_course(teacher, course_id):
+    course = db.session.get(Course, course_id)
+
+    if course is None:
+        return None, (jsonify({"error": "Course not found."}), 404)
+
+    if course.teacher_id != teacher.id:
+        return None, (jsonify({"error": "You do not teach this course."}), 403)
+
+    return course, None
+
+
+def course_to_dict(course):
+    return {
+        "id": course.id,
+        "name": course.name,
+        "teacher": course.teacher.display_name(),
+        "time": course.time,
+        "enrolled": len(course.enrollments),
+        "capacity": course.capacity
+    }
+
+
+# teacher can see all of their courses
+@app.route("/teacher/courses", methods=["GET"])
+def teacher_courses():
+    teacher, error = require_role("teacher")
+
+    if error:
+        return error
+
+    courses = (
+        Course.query
+        .filter_by(teacher_id=teacher.id)
+        .order_by(Course.name)
+        .all()
+    )
+
+    return jsonify([course_to_dict(course) for course in courses]), 200
+
+
+# see students in course, with their grades
+@app.route("/teacher/courses/<int:course_id>/students", methods=["GET"])
+def teacher_course_students(course_id):
+    teacher, error = require_role("teacher")
+
+    if error:
+        return error
+
+    course, error = get_teacher_course(teacher, course_id)
+
+    if error:
+        return error
+
+    enrollments = sorted(
+        course.enrollments,
+        key=lambda enrollment: enrollment.student.display_name().lower()
+    )
+
+    return jsonify({
+        "course": course_to_dict(course),
+        "students": [
+            {
+                "student_id": enrollment.student_id,
+                "name": enrollment.student.display_name(),
+                "grade": enrollment.grade
+            }
+            for enrollment in enrollments
+        ]
+    }), 200
+
+
+# this edits student grades
+# Body: {"grade": 92}  (reuses read_grade() for the 0-100 check)
+@app.route(
+    "/teacher/courses/<int:course_id>/students/<int:student_id>/grade",
+    methods=["PUT"]
+)
+def teacher_update_grade(course_id, student_id):
+    teacher, error = require_role("teacher")
+
+    if error:
+        return error
+
+    course, error = get_teacher_course(teacher, course_id)
+
+    if error:
+        return error
+
+    enrollment = Enrollment.query.filter_by(
+        course_id=course.id,
+        student_id=student_id
+    ).first()
+
+    if enrollment is None:
+        return jsonify({"error": "That student is not in this course."}), 404
+
+    grade, error = read_grade()
+
+    if error:
+        return error
+
+    enrollment.grade = grade
+    db.session.commit()
+
+    return jsonify({
+        "message": "Grade updated successfully.",
+        "student_id": enrollment.student_id,
+        "name": enrollment.student.display_name(),
+        "grade": enrollment.grade
+    }), 200
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

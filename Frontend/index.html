@@ -28,11 +28,7 @@
 
             <p id="loginMessage"></p>
         </section>        
-        <section id="welcomeSection" hidden>
-            <h2 id="welcomeMessage"></h2>
-            <p>Your account is logged in successfully.</p>
-            <button id="welcomeLogoutButton">Logout</button>
-        </section>
+
     <div id="dashboard" hidden>
         <header>
             <h1>Student Grades</h1>
@@ -79,10 +75,99 @@
                 </tbody>
             </table>
         </section>
+        
+        <section>
+            <h2>Manage Users</h2>
+        
+            <h3>Create User</h3>
+        
+            <input type="text" id="createUsername" placeholder="Username">
+            <input type="password" id="createPassword" placeholder="Password">
+        
+            <select id="createRole">
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
+                <option value="admin">Admin</option>
+            </select>
+        
+            <button id="createUserButton">Create User</button>
+        
+            <p id="createUserMessage"></p>
+        
+            <button id="refreshUsersButton">Refresh Users</button>
+            <p id="usersMessage"></p>
+        
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Role</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTable"></tbody>
+            </table>
+        </section>
+        
+        <section>
+            <h2>Manage Courses</h2>
+        
+            <h3>Create Course</h3>
+        
+            <form id="createCourseForm">
+                <input
+                    id="courseName"
+                    type="text"
+                    placeholder="Course Name (e.g. CSE 108)"
+                    required
+                >
+            
+                <input
+                    id="courseTime"
+                    type="text"
+                    placeholder="Schedule (e.g. MWF 10:00 AM)"
+                    required
+                >
+            
+                <input
+                    id="courseCapacity"
+                    type="number"
+                    placeholder="Capacity"
+                    min="1"
+                    step="1"
+                    required
+                >
+            
+                <select id="courseTeacher" required>
+                    <option value="">Select a teacher</option>
+                </select>
+            
+                <button type="submit">Create Course</button>
+            </form>
+        
+            <p id="createCourseMessage"></p>
+        
+            <button id="refreshCoursesButton">Refresh Courses</button>
+            <p id="coursesMessage"></p>
+        
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Course</th>
+                        <th>Teacher</th>
+                        <th>Time</th>
+                        <th>Enrollment</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="coursesTable"></tbody>
+            </table>
+        </section>
 
         </div>
-    </div>
-    <!-- ====================================== -->
+        <!-- ====================================== -->
         <!-- STUDENT DASHBOARD - TEAMMATE 1        -->
         <!-- ====================================== -->
 
@@ -91,6 +176,60 @@
             <!-- Teammate 1 adds student features here -->
 
             <!-- View enrolled courses -->
+            <h2>Student Dashboard</h2>
+            <button id="studentLogoutButton">Logout</button>
+            
+
+            <div>
+                <button id="yourCoursesTab">Your Courses</button>
+                <button id="addCoursesTab">Add Courses</button>
+            </div>
+
+            <div id="yourCoursesView">
+
+                <section>
+                    <h3>My Classes</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Class Name</th>
+                                <th>Teacher</th>
+                                <th>Time</th>
+                                <th>Students Enrolled</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="myClassesTable"></tbody>
+                    </table>
+                    <p id="allClassesMessage"></p>
+                </section>
+            </div>
+
+            <div id="addCoursesView" hidden>
+                <section>
+                    <h3>Add Courses</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Class Name</th>
+                                <th>Teacher</th>
+                                <th>Time</th>
+                                <th>Students Enrolled</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="addCoursesTable">
+                            <!--
+                            <tr><td>CSE108</td><td>J J</td><td>MWF 10:00-10:00 AM</td><td>4/8</td><td><button>Add class</button></td></tr>
+                            <tr><td>CSE100</td><td>K K</td><td>MWF 10:00-10:00 AM</td><td>4/4</td><td><button disabled>Full</button></td></tr>
+                            -->
+                        </tbody>
+                    </table>
+
+                    <p id="addCoursesMessage"></p>
+                </section>
+            </div>
+
             <!-- View available courses -->
             <!-- Enroll in courses -->
             <!-- Drop courses -->
@@ -104,11 +243,55 @@
 
         <div id="teacherDashboard" hidden>
 
-            <!-- Teammate 2 adds teacher features here -->
+            <header class="acme-header">
+                <p id="teacherWelcome" class="acme-welcome"></p>
+                <h1>ACME University</h1>
+                <button id="teacherLogoutButton" class="acme-signout">Sign out</button>
+            </header>
 
             <!-- View assigned courses -->
-            <!-- View enrolled students -->
-            <!-- View and edit student grades -->
+            <section id="teacherCoursesView" class="acme-panel">
+                <div class="acme-panel-title">
+                    <h2>Your Courses</h2>
+                </div>
+
+                <table class="acme-table">
+                    <thead>
+                        <tr>
+                            <th>Course Name</th>
+                            <th>Teacher</th>
+                            <th>Time</th>
+                            <th>Students Enrolled</th>
+                        </tr>
+                    </thead>
+                    <tbody id="teacherCoursesTable">
+                    </tbody>
+                </table>
+
+                <p id="teacherCoursesMessage" class="acme-message"></p>
+            </section>
+
+            <!-- View enrolled students and edit their grades -->
+            <section id="teacherCourseView" class="acme-panel" hidden>
+                <div class="acme-panel-title">
+                    <button id="teacherBackButton" class="acme-back" aria-label="Back to your courses">&larr;</button>
+                    <h2 id="teacherCourseTitle"></h2>
+                </div>
+
+                <table class="acme-table acme-grades-table">
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Grade</th>
+                        </tr>
+                    </thead>
+                    <tbody id="teacherStudentsTable">
+                    </tbody>
+                </table>
+
+                <p class="acme-hint">Click a grade to edit it. Changes save when you press Enter or click away.</p>
+                <p id="teacherGradeMessage" class="acme-message"></p>
+            </section>
 
         </div>
 
