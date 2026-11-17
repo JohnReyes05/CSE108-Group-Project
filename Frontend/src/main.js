@@ -355,6 +355,7 @@ function showLoggedInUser(user) {
         getAllUsers();
         getAllCourses();
         loadTeachers();
+        refreshAdminEnrollments();
 
     } else if (user.role === 'teacher') {
         showTeacherDashboard(user);
@@ -793,6 +794,236 @@ createCourseForm.addEventListener('submit', async (event) => {
         createCourseMessage.textContent = error.message;
     }
 });
+
+//
+// ADMIN ENROLLMENT MANAGEMENT
+//
+
+const enrollmentStudent = document.getElementById('enrollmentStudent');
+const enrollmentCourse = document.getElementById('enrollmentCourse');
+const enrollmentsTable = document.getElementById('enrollmentsTable');
+const enrollmentsMessage = document.getElementById('enrollmentsMessage');
+const createEnrollmentMessage =
+    document.getElementById('createEnrollmentMessage');
+
+async function refreshAdminEnrollments() {
+    try {
+        enrollmentsMessage.textContent = 'Loading enrollments...';
+
+        const [usersRes, coursesRes, enrollmentsRes] =
+            await Promise.all([
+                fetch('/admin/users'),
+                fetch('/admin/courses'),
+                fetch('/admin/enrollments')
+            ]);
+
+        if (!usersRes.ok || !coursesRes.ok || !enrollmentsRes.ok) {
+            throw new Error('Could not load enrollment information.');
+        }
+
+        const users = await usersRes.json();
+        const courses = await coursesRes.json();
+        const enrollments = await enrollmentsRes.json();
+
+        enrollmentStudent.replaceChildren();
+        enrollmentCourse.replaceChildren();
+
+        enrollmentStudent.add(new Option('Select a student', ''));
+        enrollmentCourse.add(new Option('Select a course', ''));
+
+        users
+            .filter(user => user.role === 'student')
+            .forEach(student => {
+                enrollmentStudent.add(
+                    new Option(student.username, student.id)
+                );
+            });
+
+        courses.forEach(course => {
+            enrollmentCourse.add(
+                new Option(
+                    `${course.name} (${course.enrolled}/${course.capacity})`,
+                    course.id
+                )
+            );
+        });
+
+        displayAdminEnrollments(enrollments);
+
+        enrollmentsMessage.textContent = enrollments.length
+            ? ''
+            : 'No enrollments found.';
+
+    } catch (error) {
+        enrollmentsMessage.textContent = error.message;
+    }
+}
+
+function displayAdminEnrollments(enrollments) {
+    enrollmentsTable.replaceChildren();
+
+    enrollments.forEach(enrollment => {
+        const row = document.createElement('tr');
+
+        const idCell = document.createElement('td');
+        idCell.textContent = enrollment.id;
+
+        const studentCell = document.createElement('td');
+        studentCell.textContent = enrollment.student;
+
+        const courseCell = document.createElement('td');
+        courseCell.textContent = enrollment.course;
+
+        const gradeCell = document.createElement('td');
+        gradeCell.textContent = enrollment.grade ?? 'No grade';
+
+        const actionsCell = document.createElement('td');
+
+        const editButton = document.createElement('button');
+        editButton.textContent = 'Edit Grade';
+        editButton.addEventListener('click', () => {
+            editEnrollmentGrade(enrollment);
+        });
+
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Remove';
+        deleteButton.addEventListener('click', () => {
+            deleteAdminEnrollment(enrollment);
+        });
+
+        actionsCell.append(editButton, deleteButton);
+        row.append(
+            idCell,
+            studentCell,
+            courseCell,
+            gradeCell,
+            actionsCell
+        );
+
+        enrollmentsTable.appendChild(row);
+    });
+}
+
+document.getElementById('createEnrollmentForm')
+    .addEventListener('submit', async event => {
+        event.preventDefault();
+
+        const student_id = Number(enrollmentStudent.value);
+        const course_id = Number(enrollmentCourse.value);
+
+        if (!student_id || !course_id) {
+            createEnrollmentMessage.textContent =
+                'Please select a student and course.';
+            return;
+        }
+
+        try {
+            const response = await fetch('/admin/enrollments', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ student_id, course_id })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Enrollment failed.');
+            }
+
+            await refreshAdminEnrollments();
+            await getAllCourses();
+
+            createEnrollmentMessage.textContent =
+                data.message || 'Student enrolled successfully.';
+
+        } catch (error) {
+            createEnrollmentMessage.textContent = error.message;
+        }
+    });
+
+async function editEnrollmentGrade(enrollment) {
+    const input = window.prompt(
+        `New grade for ${enrollment.student} in ${enrollment.course}:`,
+        enrollment.grade ?? ''
+    );
+
+    if (input === null) return;
+
+    if (input.trim() === '') {
+        enrollmentsMessage.textContent = 'Please enter a grade.';
+        return;
+    }
+
+    const grade = Number(input);
+
+    if (!Number.isFinite(grade) || grade < 0 || grade > 100) {
+        enrollmentsMessage.textContent =
+            'Grade must be between 0 and 100.';
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `/admin/enrollments/${enrollment.id}`,
+            {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ grade })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Could not update grade.');
+        }
+
+        await refreshAdminEnrollments();
+        enrollmentsMessage.textContent =
+            'Enrollment grade updated successfully.';
+
+    } catch (error) {
+        enrollmentsMessage.textContent = error.message;
+    }
+}
+
+async function deleteAdminEnrollment(enrollment) {
+    const confirmed = window.confirm(
+        `Remove ${enrollment.student} from ${enrollment.course}? ` +
+        'Their grade for this enrollment will also be deleted.'
+    );
+
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch(
+            `/admin/enrollments/${enrollment.id}`,
+            { method: 'DELETE' }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Could not remove enrollment.');
+        }
+
+        await refreshAdminEnrollments();
+        await getAllCourses();
+
+        enrollmentsMessage.textContent =
+            data.message || 'Enrollment removed successfully.';
+
+    } catch (error) {
+        enrollmentsMessage.textContent = error.message;
+    }
+}
+
+document.getElementById('refreshEnrollmentsButton')
+    .addEventListener('click', refreshAdminEnrollments);
 
 // ==========================================
 // STUDENT DASHBOARD

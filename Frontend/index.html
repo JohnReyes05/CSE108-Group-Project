@@ -166,6 +166,45 @@
             </table>
         </section>
 
+        <section>
+            <h2>Manage Enrollments</h2>
+
+            <h3>Enroll Student</h3>
+
+            <form id="createEnrollmentForm">
+                <select id="enrollmentStudent" required>
+                    <option value="">Select a student</option>
+                </select>
+
+                <select id="enrollmentCourse" required>
+                    <option value="">Select a course</option>
+                </select>
+
+                <button type="submit">Enroll Student</button>
+            </form>
+
+            <p id="createEnrollmentMessage"></p>
+
+            <button id="refreshEnrollmentsButton">
+                Refresh Enrollments
+            </button>
+
+            <p id="enrollmentsMessage"></p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Student</th>
+                        <th>Course</th>
+                        <th>Grade</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="enrollmentsTable"></tbody>
+            </table>
+        </section>
+
         </div>
         <!-- ====================================== -->
         <!-- STUDENT DASHBOARD - TEAMMATE 1        -->

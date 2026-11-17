@@ -683,6 +683,136 @@ def admin_delete_course(course_id):
     return jsonify({
         "message": "Course deleted successfully."
     }), 200
+@app.route("/admin/enrollments", methods=["GET"])
+def admin_get_enrollments():
+    admin, error = require_admin()
+
+    if error:
+        return error
+
+    enrollments = Enrollment.query.order_by(Enrollment.id).all()
+
+    return jsonify([
+        {
+            "id": enrollment.id,
+            "student_id": enrollment.student_id,
+            "student": enrollment.student.display_name(),
+            "course_id": enrollment.course_id,
+            "course": enrollment.course.name,
+            "grade": enrollment.grade
+        }
+        for enrollment in enrollments
+    ]), 200
+
+@app.route("/admin/enrollments", methods=["POST"])
+def admin_create_enrollment():
+    admin, error = require_admin()
+
+    if error:
+        return error
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({"error": "Invalid request data."}), 400
+
+    student_id = data.get("student_id")
+    course_id = data.get("course_id")
+
+    if type(student_id) is not int or type(course_id) is not int:
+        return jsonify({
+            "error": "Student ID and Course ID must be integers."
+        }), 400
+
+    student = db.session.get(User, student_id)
+    course = db.session.get(Course, course_id)
+
+    if student is None or student.role != "student":
+        return jsonify({"error": "Invalid student."}), 400
+
+    if course is None:
+        return jsonify({"error": "Course not found."}), 404
+
+    existing = Enrollment.query.filter_by(
+        student_id=student_id,
+        course_id=course_id
+    ).first()
+
+    if existing is not None:
+        return jsonify({
+            "error": "Student is already enrolled in this course."
+        }), 409
+
+    if len(course.enrollments) >= course.capacity:
+        return jsonify({"error": "Course is full."}), 409
+
+    enrollment = Enrollment(
+        student_id=student_id,
+        course_id=course_id
+    )
+
+    db.session.add(enrollment)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Student enrolled successfully.",
+        "id": enrollment.id,
+        "student": student.display_name(),
+        "course": course.name
+    }), 201
+
+@app.route("/admin/enrollments/<int:enrollment_id>", methods=["PUT"])
+def admin_update_enrollment(enrollment_id):
+    admin, error = require_admin()
+
+    if error:
+        return error
+
+    enrollment = db.session.get(Enrollment, enrollment_id)
+
+    if enrollment is None:
+        return jsonify({"error": "Enrollment not found."}), 404
+
+    grade, error = read_grade()
+
+    if error:
+        return error
+
+    enrollment.grade = grade
+    db.session.commit()
+
+    return jsonify({
+        "message": "Enrollment grade updated successfully.",
+        "id": enrollment.id,
+        "student": enrollment.student.display_name(),
+        "course": enrollment.course.name,
+        "grade": enrollment.grade
+    }), 200
+
+@app.route("/admin/enrollments/<int:enrollment_id>", methods=["DELETE"])
+def admin_delete_enrollment(enrollment_id):
+    admin, error = require_admin()
+
+    if error:
+        return error
+
+    enrollment = db.session.get(Enrollment, enrollment_id)
+
+    if enrollment is None:
+        return jsonify({
+            "error": "Enrollment not found."
+        }), 404
+
+    student_name = enrollment.student.display_name()
+    course_name = enrollment.course.name
+
+    db.session.delete(enrollment)
+    db.session.commit()
+
+    return jsonify({
+        "message": f"Removed {student_name} from {course_name} successfully."
+    }), 200
+
 # ==========================================
 # STUDENT ROUTES
 # ==========================================
