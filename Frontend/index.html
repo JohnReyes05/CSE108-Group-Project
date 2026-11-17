@@ -177,6 +177,60 @@
             <!-- Teammate 1 adds student features here -->
 
             <!-- View enrolled courses -->
+            <h2>Student Dashboard</h2>
+            <button id="studentLogoutButton">Logout</button>
+            
+
+            <div>
+                <button id="yourCoursesTab">Your Courses</button>
+                <button id="addCoursesTab">Add Courses</button>
+            </div>
+
+            <div id="yourCoursesView">
+
+                <section>
+                    <h3>My Classes</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Class Name</th>
+                                <th>Teacher</th>
+                                <th>Time</th>
+                                <th>Students Enrolled</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="myClassesTable"></tbody>
+                    </table>
+                    <p id="allClassesMessage"></p>
+                </section>
+            </div>
+
+            <div id="addCoursesView" hidden>
+                <section>
+                    <h3>Add Courses</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Class Name</th>
+                                <th>Teacher</th>
+                                <th>Time</th>
+                                <th>Students Enrolled</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="addCoursesTable">
+                            <!--
+                            <tr><td>CSE108</td><td>J J</td><td>MWF 10:00-10:00 AM</td><td>4/8</td><td><button>Add class</button></td></tr>
+                            <tr><td>CSE100</td><td>K K</td><td>MWF 10:00-10:00 AM</td><td>4/4</td><td><button disabled>Full</button></td></tr>
+                            -->
+                        </tbody>
+                        <p id="addCoursesMessage"></p>
+                        
+                    </table>
+                </section>
+            </div>
+
             <!-- View available courses -->
             <!-- Enroll in courses -->
             <!-- Drop courses -->

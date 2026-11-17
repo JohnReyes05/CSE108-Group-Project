@@ -656,6 +656,125 @@ def admin_delete_course(course_id):
 # Teammate 1 adds student routes here
 
 
+class Course(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    teacher = db.Column(db.String(100), nullable=False)
+    time = db.Column(db.String(100), nullable=False)
+    capacity = db.Column(db.Integer, nullable=False)
+    #students = db.relationship('User', secondary=student_classes, backref='enrolled_classes')
+
+class Enrollment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
+    grade = db.Column(db.Float, nullable=True)
+
+    user = db.relationship('User', backref='enrollments')
+    course = db.relationship('Course', backref='enrollments')
+
+    __table_args__= (
+        db.UniqueConstraint('user_id', 'course_id', name='one_enrollment_per_class'),
+    )
+
+with app.app_context():
+    db.create_all()
+
+    #if Course.query.count() == 0:
+    #    courses = [
+    #        Course(name="j", teacher="j", time="11:00-12:00", capacity=10),
+    #        Course(name="k", teacher="k", time="12:00-13:00", capacity=10),
+    #        Course(name="l", teacher="l", time="13:00-14:00", capacity=10),   
+    #    ]
+    #    db.session.add_all(courses)
+    #    for s in User.query.filter_by(role="student").all():
+    #        s.enrolled_classes.extend(courses[:2])
+    #    db.session.commit()
+
+@app.route("/my-classes", methods=["GET"])
+def get_my_classes():
+    user_id = session.get("user_id")
+    if user_id is None:
+        return jsonify({"error": "Not logged in"}), 401
+
+    user = db.session.get(User, user_id)
+    if user is None or user.role != "student":
+        return jsonify({"error": "Students only."}), 403
+
+    return jsonify([
+        {
+            "id": e.course.id,
+            "name": e.course.name,
+            "teacher": e.course.teacher,
+            "time": e.course.time,
+            "enrolled": len(e.course.enrollments),
+            "capacity": e.course.capacity
+        }
+        for e in user.enrollments
+    ])
+
+@app.route("/classes", methods=["GET"])
+def get_all_classes():
+    if session.get("user_id") is None:
+        return jsonify({"error": "Not logged in"}), 401
+    courses = Course.query.order_by(Course.name).all()
+    return jsonify([
+        {
+            "id": c.id,
+            "name": c.name,
+            "teacher": c.teacher,
+            "time": c.time,
+            "enrolled": len(c.enrollments),
+            "capacity": c.capacity
+        }
+        for c in courses
+    ])
+
+
+@app.route("/enroll/<int:course_id>", methods=["POST"])
+def enroll(course_id):
+    user_id = session.get("user_id")
+    if user_id is None:
+        return jsonify({"error": "Not logged in"}), 401
+
+    user = db.session.get(User, user_id)
+    if user is None or user.role != "student":
+        return jsonify({"error": "Students only."}), 403
+
+    course = db.session.get(Course, course_id)
+    if course is None:
+        return jsonify({"error": "Class not found."}), 404
+
+    if Enrollment.query.filter_by(user_id=user.id, course_id=course.id).first():
+        return jsonify({"error": "Already enrolled."}), 409
+
+    count = Enrollment.query.filter_by(course_id=course.id).count()
+    if count >= course.capacity:
+        return jsonify({"error": "Class is full."}), 409
+
+    db.session.add(Enrollment(user_id=user.id, course_id=course.id))
+    db.session.commit()
+    return jsonify({"message": "Enrolled."}), 201
+
+
+@app.route("/enroll/<int:course_id>", methods=["DELETE"])
+def drop(course_id):
+    user_id = session.get("user_id")
+    if user_id is None:
+        return jsonify({"error": "Not logged in"}), 401
+
+    user = db.session.get(User, user_id)
+    if user is None or user.role != "student":
+        return jsonify({"error": "Students only."}), 403
+
+    enrollment = Enrollment.query.filter_by(user_id=user.id, course_id=course_id).first()
+    if enrollment is None:
+        return jsonify({"error": "Not enrolled in that class."}), 404
+
+    db.session.delete(enrollment)
+    db.session.commit()
+    return jsonify({"message": "Dropped."}), 200
+
 # ==========================================
 # TEACHER ROUTES
 # ==========================================
