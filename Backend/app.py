@@ -251,7 +251,169 @@ def delete_grade(name):
 # Existing grade management routes
 # Additional admin routes will go here
 
+def require_admin():
+    user_id = session.get("user_id")
 
+    if user_id is None:
+        return None, (jsonify({"error": "Not logged in."}), 401)
+
+    user = db.session.get(User, user_id)
+
+    if user is None:
+        session.clear()
+        return None, (jsonify({"error": "Not logged in."}), 401)
+
+    if user.role != "admin":
+        return None, (jsonify({"error": "Admin access required."}), 403)
+
+    return user, None
+
+@app.route("/admin/users", methods=["GET"])
+def admin_get_users():
+    admin, error = require_admin()
+
+    if error:
+        return error
+
+    users = User.query.order_by(User.username).all()
+
+    return jsonify([
+        {
+            "id": user.id,
+            "username": user.username,
+            
+            "role": user.role
+        }
+        for user in users
+    ]), 200
+@app.route("/admin/users", methods=["POST"])
+def admin_create_user():
+    admin, error = require_admin()
+
+    if error:
+        return error
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({"error": "Invalid request data."}), 400
+
+    username = data.get("username")
+    password = data.get("password")
+    role = data.get("role")
+    if (
+        not isinstance(username, str)
+        or not username.strip()
+        or not isinstance(password, str)
+        or not password
+    ):
+        return jsonify({
+            "error": "Username and password are required."
+        }), 400
+
+    username = username.strip()
+
+    if role not in ("student", "teacher", "admin"):
+        return jsonify({"error": "Invalid role."}), 400
+
+    if len(password) < 8:
+        return jsonify({
+            "error": "Password must contain at least 8 characters."
+        }), 400
+    existing_user = User.query.filter_by(username=username).first()
+
+    if existing_user is not None:
+        return jsonify({
+            "error": "Username already exists."
+        }), 409
+    new_user = User(
+        username=username,
+        role=role
+    )
+
+    new_user.set_password(password)
+
+    db.session.add(new_user)
+    db.session.commit()
+    
+
+    return jsonify({
+        "message": "User created successfully.",
+        "id": new_user.id,
+        "username": new_user.username,
+        "role": new_user.role
+    }), 201
+@app.route("/admin/users/<int:user_id>", methods=["DELETE"])
+def admin_delete_user(user_id):
+    admin, error = require_admin()
+
+    if error:
+        return error
+
+    user = db.session.get(User, user_id)
+
+    if user is None:
+        return jsonify({"error": "User not found."}), 404
+
+    if user.id == admin.id:
+        return jsonify({
+            "error": "You cannot delete your own account."
+        }), 403
+
+    db.session.delete(user)
+    db.session.commit()
+
+    return jsonify({
+        "message": "User deleted successfully."
+    }), 200
+@app.route("/admin/users/<int:user_id>", methods=["PUT"])
+def admin_update_user(user_id):
+    admin, error = require_admin()
+
+    if error:
+        return error
+
+    user = db.session.get(User, user_id)
+
+    if user is None:
+        return jsonify({"error": "User not found."}), 404
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({"error": "Invalid request data."}), 400
+
+    username = data.get("username")
+    role = data.get("role")
+
+    if not isinstance(username, str) or not username.strip():
+        return jsonify({"error": "Username is required."}), 400
+
+    username = username.strip()
+
+    if role not in ("student", "teacher", "admin"):
+        return jsonify({"error": "Invalid role."}), 400
+
+    if user.id == admin.id and role != "admin":
+        return jsonify({
+            "error": "You cannot remove your own admin role."
+        }), 403
+
+    existing_user = User.query.filter_by(username=username).first()
+
+    if existing_user is not None and existing_user.id != user.id:
+        return jsonify({"error": "Username already exists."}), 409
+
+    user.username = username
+    user.role = role
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "User updated successfully.",
+        "id": user.id,
+        "username": user.username,
+        "role": user.role
+    }), 200
 # ==========================================
 # STUDENT ROUTES
 # ==========================================

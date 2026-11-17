@@ -344,6 +344,7 @@ function showLoggedInUser(user) {
         dashboard.hidden = false;
         document.getElementById('welcomeSection').hidden = true;
         getAllGrades();
+        getAllUsers();
     } else {
         dashboard.hidden = true;
         document.getElementById('welcomeSection').hidden = false;
@@ -359,8 +360,192 @@ function showLoggedInUser(user) {
 // getAllGrades()
 // displayGrades()
 // Add, edit, delete, and search
+const usersTable = document.getElementById('usersTable');
+const usersMessage = document.getElementById('usersMessage');
 
+async function getAllUsers() {
+    try {
+        usersMessage.textContent = 'Loading users...';
 
+        const response = await fetch('/admin/users');
+
+        if (!response.ok) {
+            throw new Error('Could not retrieve users.');
+        }
+
+        const users = await response.json();
+
+        displayUsers(users);
+        usersMessage.textContent = '';
+
+    } catch (error) {
+        usersMessage.textContent = error.message;
+    }
+}
+function displayUsers(users) {
+    usersTable.replaceChildren();
+
+    users.forEach(user => {
+        const row = document.createElement('tr');
+
+        const idCell = document.createElement('td');
+        idCell.textContent = user.id;
+
+        const usernameCell = document.createElement('td');
+        usernameCell.textContent = user.username;
+
+        const roleCell = document.createElement('td');
+        roleCell.textContent = user.role;
+
+        const actionsCell = document.createElement('td');
+
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Delete';
+
+        deleteButton.addEventListener('click', () => {
+            deleteUser(user.id, user.username);
+        });
+        const editButton = document.createElement('button');
+        editButton.textContent = 'Edit';
+
+        editButton.addEventListener('click', () => {
+            editUser(user);
+        });
+
+        actionsCell.appendChild(editButton);
+
+        actionsCell.appendChild(deleteButton);
+
+        row.append(idCell, usernameCell, roleCell, actionsCell);
+
+        usersTable.appendChild(row);
+    });
+}
+async function deleteUser(userId, username) {
+    const confirmed = window.confirm(
+        `Are you sure you want to delete ${username}?`
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/admin/users/${userId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            usersMessage.textContent =
+                data.error || 'Could not delete user.';
+            return;
+        }
+
+        usersMessage.textContent =
+            `Deleted ${username} successfully!`;
+
+        await getAllUsers();
+
+    } catch (error) {
+        usersMessage.textContent =
+            'Could not connect to the server.';
+    }
+}
+async function editUser(user) {
+    const username = window.prompt(
+        'Enter new username:',
+        user.username
+    );
+
+    if (username === null) {
+        return;
+    }
+
+    const role = window.prompt(
+        'Enter role (student, teacher, admin):',
+        user.role
+    );
+
+    if (role === null) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/admin/users/${user.id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                username: username.trim(),
+                role: role.trim().toLowerCase()
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            usersMessage.textContent =
+                data.error || 'Could not update user.';
+            return;
+        }
+
+        await getAllUsers();
+
+        usersMessage.textContent =
+            `Updated ${data.username} successfully!`;
+
+    } catch (error) {
+        usersMessage.textContent =
+            'Could not connect to the server.';
+    }
+}
+document.getElementById('refreshUsersButton')
+    .addEventListener('click', getAllUsers);
+
+document.getElementById('createUserButton')
+    .addEventListener('click', async () => {
+
+        const username = document.getElementById('createUsername').value.trim();
+        const password = document.getElementById('createPassword').value;
+        const role = document.getElementById('createRole').value;
+        const createUserMessage = document.getElementById('createUserMessage');
+
+        if (!username || !password) {
+            createUserMessage.textContent = 'Please enter a username and password.';
+            return;
+        }
+
+        try {
+            const response = await fetch('/admin/users', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password, role })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                createUserMessage.textContent = data.error || 'Could not create user.';
+                return;
+            }
+
+            createUserMessage.textContent = `Created ${data.username} successfully!`;
+
+            document.getElementById('createUsername').value = '';
+            document.getElementById('createPassword').value = '';
+
+            await getAllUsers();
+
+        } catch (error) {
+            createUserMessage.textContent = 'Could not connect to the server.';
+        }
+    });
+    
 // ==========================================
 // STUDENT DASHBOARD
 // ==========================================
